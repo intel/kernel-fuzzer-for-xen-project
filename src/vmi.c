@@ -1,0 +1,65 @@
+#include "private.h"
+
+bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bool init_events, bool init_os)
+{
+    printf("Init vmi, init_events: %i init_os %i domain %s domid %lu\n", init_events, init_os, domain, domid);
+
+    vmi_mode_t mode = (init_events ? VMI_INIT_EVENTS : 0) |
+                      (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
+
+    const void *d = domain ?: (void*)&domid;
+
+    if ( VMI_FAILURE == vmi_init(vmi, VMI_XEN, d, mode, NULL, NULL) )
+        return false;
+
+    if ( !init_os )
+    {
+        if ( VMI_PM_UNKNOWN == vmi_init_paging(*vmi, 0) )
+        {
+            vmi_destroy(*vmi);
+            return false;
+        }
+    }
+    else if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
+    {
+        vmi_destroy(*vmi);
+        return false;
+    }
+
+    registers_t regs = {0};
+    if ( VMI_FAILURE == vmi_get_vcpuregs(*vmi, &regs, 0) )
+    {
+        vmi_destroy(*vmi);
+        return false;
+    }
+
+    target_pagetable = regs.x86.cr3;
+    start_rip = regs.x86.rip;
+
+    return true;
+}
+
+void loop(vmi_instance_t vmi)
+{
+    if ( !vmi )
+        return;
+
+    vmi_resume_vm(vmi);
+
+    while (!interrupted)
+    {
+        if ( vmi_events_listen(vmi, 500) == VMI_FAILURE )
+        {
+            fprintf(stderr, "Error in vmi_events_listen!\n");
+            break;
+        }
+    }
+
+    interrupted = 0;
+}
+
+void free_event(vmi_event_t *event, status_t status)
+{
+    if ( VMI_SUCCESS == status )
+        g_free(event);
+}

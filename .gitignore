@@ -1,0 +1,11 @@
+stamp-h1
+*.o
+*.Po
+aclocal.m4
+autom4te.cache
+config*
+Makefile
+Makefile.in
+kernel-fuzzer
+src/.deps
+src/.dirstamp

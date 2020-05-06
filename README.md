@@ -37,7 +37,7 @@ This project is licensed under the terms of the MIT license
 # 1. Install dependencies <a name="section-1"></a>
 ----------------------------------
 ```
-sudo apt install git-core build-essential json-c-dev libglib2.0-dev bison flex golang-1.13 bcc bin86 gawk bridge-utils iproute libcurl3 libcurl4-openssl-dev bzip2 module-init-tools libc6-dev zlib1g-dev python3 python3-dev libncurses-dev patch libvncserver-dev iasl libbz2-dev uuid-dev xz-utils libyajl-dev libaio-dev lvm2 xtightvncviewer libsystemd-dev screen
+sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc libsdl1.2-dev uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libcapstone-dev
 ```
 
 # 2. Grab the project and all submodules <a name="section-2"></a>
@@ -50,6 +50,18 @@ git submodule update --init
 
 # 3. Compile & Install Xen <a name="section-3"></a>
 ----------------------------------
+There had been some compiler issues with newer gcc's so set your gcc version to GCC-7:
+
+```
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
+```
+
+Make sure the pci include folder exists at `/usr/include/pci`. In case it doesn't create a symbolic link to where it's installed at:
+```
+sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
+```
+
+Now we can compile Xen
 ```
 cd xen
 echo "export XEN_CONFIG_EXPERT=y" >> ~/.bashrc

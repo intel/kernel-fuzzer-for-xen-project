@@ -7,6 +7,10 @@ tool allows fine-tuning how many control-flow instructions to allow the fuzzing 
 
 This project is licensed under the terms of the MIT license
 
+# Demo
+
+![](demo.gif)
+
 # Table of Contents
 1. [Install dependencies](#section-1)
 2. [Grab the project and all submodules](#section-2)

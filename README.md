@@ -217,6 +217,29 @@ The target kernel module needs to be harnessed using two CPUID instructions with
 See the `testmodule` folder for an example.
 
 ```
+static inline void harness(void)
+{
+    asm (
+        "push %rax\n\t"
+        "push %rbx\n\t"
+        "push %rcx\n\t"
+        "push %rdx\n\t"
+        "movq $0x13371337,%rax\n\t"
+        "cpuid\n\t"
+        "pop %rdx\n\t"
+        "pop %rcx\n\t"
+        "pop %rbx\n\t"
+        "pop %rax\n\t"
+    );
+}
+```
+
+You can insert the harness before and after the code segment you want to fuzz:
+
+```
+    harness();
+    x = test((int)test1[0]);
+    harness();
 ```
 
 # 14. Setup the VM for fuzzing <a name="section-14"></a>
@@ -243,25 +266,31 @@ You should see a login screen when you press enter. Proceed to login.
 sudo insmod testmodule.ko
 ```
 
-The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kernel-fuzzer` should have now also exited with a message `Parent is now ready`.
+The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kernel-fuzzer` should have now also exited with a message `Parent ready`.
  
 # 17. Star fuzzing using AFL <a name="section-17"></a>
 ---------------------------------
-Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`.
+Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`. You also have to first seed your fuzzer with an input that doesn't produces a crash in the code segment being fuzzed.
 
 ```
-sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain debian --json ~/debian.json --input @@ --address <KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+mkdir input
+mkdir output
+echo -n "not_beef" > input/beef
+sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain debian --json ~/debian.json --input @@ --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 You can also specify the `--limit` option of how many control-flow instructions you want to encounter before timing out the fuzz iteration. This is an alternative to the AFL built-in time-out model.
 
-After you are finished with fuzzing, the VM can be unpaused and should resume normally.
+The speed of the fuzzer will vary based on how much code you are fuzzing. The more code you are exercises the fewer iterations per second you will see. The testmodule included with the project has been observed to produce a speed of 200-600 iterations per second on i5 family CPUs. Don't forget: you can run multiple instances of the fuzzer to speed things up even further by utilizing more CPU cores on your machine.
+
+After you are finished with fuzzing, the VM can be unpaused and should resume normally without any side-effects.
 
 # 18. Debugging <a name="section-18"></a>
 ---------------------------------
 You can run the kernel fuzzer directly to inject an input into a VM fork without AFL, adding the `--debug` option will provide you with a verbose output.
+
 ```
-sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --address <KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 

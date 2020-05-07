@@ -50,9 +50,8 @@ static uint8_t cc = 0xCC;
 static uint8_t cf_backup;
 
 static vmi_event_t singlestep_event, cc_event, cpuid_event;
-event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event);
 
-void breakpoint_next_cf(vmi_instance_t vmi)
+static void breakpoint_next_cf(vmi_instance_t vmi)
 {
     if ( VMI_SUCCESS == vmi_read_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL) &&
          VMI_SUCCESS == vmi_write_pa(vmi, next_cf_paddr, 1, &cc, NULL) )
@@ -95,7 +94,7 @@ static inline bool is_cf(unsigned int id)
     return false;
 }
 
-bool next_cf_insn(vmi_instance_t vmi, addr_t start)
+static bool next_cf_insn(vmi_instance_t vmi, addr_t start)
 {
     cs_insn *insn;
     size_t count;
@@ -146,7 +145,7 @@ done:
     return found;
 }
 
-event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     if ( debug ) printf("[TRACER %s] 0x%lx.\n", traptype[event->type], event->x86_regs->rip);
 
@@ -209,6 +208,28 @@ event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
      */
     if ( VMI_EVENT_INTERRUPT == event->type )
     {
+        /*
+         * This is not a SINK breakpoint and it's not the next CF either.
+         * Need to reinject if we are using CPUID as the harness.
+         * Otherwise this is the end harness.
+         */
+        if ( event->x86_regs->rip != next_cf_vaddr )
+        {
+            if ( harness_cpuid )
+            {
+                if ( debug ) printf("\t Reinjecting unexpected breakpoint at 0x%lx\n", event->x86_regs->rip);
+                event->interrupt_event.reinject = 1;
+                return 0;
+            }
+
+            // Harness signal on finish
+            vmi_pause_vm(vmi);
+            interrupted = 1;
+            if ( debug ) printf("\t Harness signal on finish\n");
+            return 0;
+        }
+
+        /* We are at the expected breakpointed CF instruction */
         event->interrupt_event.reinject = 0;
         vmi_write_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL);
 
@@ -265,16 +286,20 @@ bool setup_trace(vmi_instance_t vmi)
     SETUP_SINGLESTEP_EVENT(&singlestep_event, 1, tracer_cb, 0);
     SETUP_INTERRUPT_EVENT(&cc_event, tracer_cb);
 
-    cpuid_event.version = VMI_EVENTS_VERSION;
-    cpuid_event.type = VMI_EVENT_CPUID;
-    cpuid_event.callback = tracer_cb;
-
     if ( VMI_FAILURE == vmi_register_event(vmi, &singlestep_event) )
         return false;
     if ( VMI_FAILURE == vmi_register_event(vmi, &cc_event) )
         return false;
-    if ( VMI_FAILURE == vmi_register_event(vmi, &cpuid_event) )
-        return false;
+
+    if ( harness_cpuid )
+    {
+        cpuid_event.version = VMI_EVENTS_VERSION;
+        cpuid_event.type = VMI_EVENT_CPUID;
+        cpuid_event.callback = tracer_cb;
+
+        if ( VMI_FAILURE == vmi_register_event(vmi, &cpuid_event) )
+            return false;
+    }
 
     if ( debug ) printf("Setup trace finished\n");
     return true;
@@ -302,7 +327,9 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
 void close_trace(vmi_instance_t vmi) {
     vmi_clear_event(vmi, &singlestep_event, NULL);
     vmi_clear_event(vmi, &cc_event, NULL);
-    vmi_clear_event(vmi, &cpuid_event, NULL);
+
+    if ( harness_cpuid )
+        vmi_clear_event(vmi, &cpuid_event, NULL);
 
     if ( debug ) printf("Closing tracer\n");
 }

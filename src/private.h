@@ -52,6 +52,9 @@ addr_t start_rip;
 int interrupted;
 int vcpus;
 
+bool harness_cpuid;
+uint8_t start_byte;
+
 csh cs_handle;
 
 #endif

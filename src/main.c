@@ -96,20 +96,25 @@ static bool fuzz_fork(void)
 static void usage(void)
 {
     printf("Inputs required for SETUP step:\n");
-    printf("\t--setup\n");
-    printf("\t--domain <domain name> OR --domid <domain id>\n");
-    printf("\t--json <path to kernel debug json>\n");
+    printf("\t  --setup\n");
+    printf("\t  --domain <domain name> OR --domid <domain id>\n");
+    printf("\t  --json <path to kernel debug json>\n");
+    printf("\tOptional inputs:\n");
+    printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
+    printf("\t  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
 
     printf("\n\n");
     printf("Inputs required for FUZZING step:\n");
-    printf("\t--input <path to input file> or @@ with AFL\n");
-    printf("\t--address <kernel virtual address to inject input to>\n");
-    printf("\t--domain <domain name> OR --domid <domain id>\n");
-    printf("\t--json <path to kernel debug json>\n");
+    printf("\t  --input <path to input file> or @@ with AFL\n");
+    printf("\t  --address <kernel virtual address to inject input to>\n");
+    printf("\t  --domain <domain name> OR --domid <domain id>\n");
+    printf("\t  --json <path to kernel debug json>\n");
+    printf("\tOptional inputs:\n");
+    printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
+    printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
 
     printf("\n\n");
-    printf("Optional inputs\n");
-    printf("\t--limit <limit FUZZING execution to # of CF instructions>\n");
+    printf("Optional global inputs:\n");
     printf("\t--debug\n");
     printf("\t--logfile <path to logfile>\n");
 }
@@ -120,20 +125,24 @@ int main(int argc, char** argv)
     int c, out = 0, long_index = 0;
     const struct option long_opts[] =
     {
+        {"help", no_argument, NULL, 'h'},
         {"domain", required_argument, NULL, 'd'},
         {"domid", required_argument, NULL, 'i'},
         {"json", required_argument, NULL, 'j'},
         {"input", required_argument, NULL, 'f'},
         {"address", required_argument, NULL, 'a'},
         {"limit", required_argument, NULL, 'l'},
-        {"setup", optional_argument, NULL, 's'},
-        {"debug", optional_argument, NULL, 'v'},
+        {"setup", no_argument, NULL, 's'},
+        {"debug", no_argument, NULL, 'v'},
         {"logfile", required_argument, NULL, 'F'},
+        {"harness", required_argument, NULL, 'H'},
+        {"start-byte", required_argument, NULL, 'S'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:sv";
+    const char* opts = "d:i:j:f:a:l:F:H:S:svh";
     limit = ~0;
 
+    harness_cpuid = true;
     input_file = NULL;
     input_size = 0;
 
@@ -168,14 +177,29 @@ int main(int argc, char** argv)
         case 'F':
             logfile = optarg;
             break;
+        case 'H':
+            if ( !strcmp(optarg, "breakpoint") )
+                harness_cpuid = false;
+            break;
+        case 'S':
+            start_byte = strtoull(optarg, NULL, 0);
+            break;
+        case 'h': /* fall-through */
         default:
-            exit(1);
+            usage();
+            return -1;
         };
     }
 
     if ( (!domain && !domid) || !json || (!address && !setup) )
     {
         usage();
+        return -1;
+    }
+
+    if ( !harness_cpuid && !start_byte )
+    {
+        printf("For breakpoint harness --start-byte with a value must be provided (NOP is always a good option, 0x90)\n");
         return -1;
     }
 

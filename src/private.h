@@ -50,7 +50,6 @@ addr_t address;
 unsigned long limit;
 
 xc_interface *xc;
-libxl_ctx *xl;
 vmi_instance_t vmi;
 os_t os;
 addr_t target_pagetable;

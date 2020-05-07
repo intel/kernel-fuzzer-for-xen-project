@@ -15,8 +15,7 @@ PKG_CHECK_MODULES([VMI], [libvmi],[],[AC_MSG_ERROR(LibVMI not found. Install mis
 PKG_CHECK_MODULES([JSONC], [json-c],[],[AC_MSG_ERROR(json-c not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([CAPSTONE], [capstone],[],[AC_MSG_ERROR(Capstone not found. Install missing package and re-run)])
 
-AC_CHECK_LIB(xenlight, libxl_ctx_alloc, [], [AC_ERROR([libxl not found. Install missing package and re-run])])
-AC_CHECK_LIB(xenctrl, xc_interface_open,[],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
+AC_CHECK_LIB(xenctrl, [xc_memshr_fork, xc_memshr_fork_reset], [],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
 
 AC_CONFIG_FILES(Makefile)
 AC_OUTPUT

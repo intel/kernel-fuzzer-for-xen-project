@@ -19,7 +19,7 @@ kernel_fuzzer_CFLAGS  = -Wall -Wextra -fstack-protector \
                         $(JSONC_CFLAGS) \
                         $(CAPSTONE_CFLAGS)
 
-EXTRA_DIST = README.md \
+EXTRA_DIST = configure.ac README.md \
              tools/README tools/Makefile tools/vmfork.go \
              patches/0001-AFL-Xen-mode.patch \
              testmodule/Makefile testmodule/testmodule.c

@@ -57,9 +57,3 @@ void loop(vmi_instance_t vmi)
 
     interrupted = 0;
 }
-
-void free_event(vmi_event_t *event, status_t status)
-{
-    if ( VMI_SUCCESS == status )
-        g_free(event);
-}

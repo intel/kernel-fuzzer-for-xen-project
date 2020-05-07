@@ -18,15 +18,10 @@
 #define LIBXL_API_VERSION 0x041300
 #include <libxl.h>
 
-#define LIBVMI_EXTRA_JSON
-#define LIBVMI_EXTRA_GLIB
 #include <libvmi/libvmi.h>
-#include <libvmi/libvmi_extra.h>
 #include <libvmi/events.h>
 #include <libvmi/x86.h>
 
-#include <json-c/json.h>
-#include <glib.h>
 #include <capstone.h>
 
 #include "signal.h"

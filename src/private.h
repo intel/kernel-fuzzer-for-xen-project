@@ -12,12 +12,6 @@
 #include <sys/shm.h>
 #include <sys/wait.h>
 
-#define XC_WANT_COMPAT_EVTCHN_API 1
-#define XC_WANT_COMPAT_MAP_FOREIGN_API 1
-#include <xenctrl.h>
-#define LIBXL_API_VERSION 0x041300
-#include <libxl.h>
-
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 #include <libvmi/x86.h>
@@ -29,6 +23,7 @@
 #include "afl.h"
 #include "setup.h"
 #include "tracer.h"
+#include "forkvm.h"
 
 char *domain;
 char *json;

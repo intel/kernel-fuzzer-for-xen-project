@@ -29,6 +29,7 @@ char *domain;
 char *json;
 char *input_file;
 size_t input_size;
+size_t input_limit;
 unsigned char *input;
 uint32_t domid, forkdomid;
 bool afl;

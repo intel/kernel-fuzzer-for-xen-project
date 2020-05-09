@@ -11,7 +11,10 @@ static bool inject_input(vmi_instance_t vmi)
         .addr = address
     };
 
-    printf("Writing %lu bytes of input to 0x%lx\n", input_size, address);
+    if ( input_limit && input_size > input_limit )
+        input_size = input_limit;
+
+    if ( debug ) printf("Writing %lu bytes of input to 0x%lx\n", input_size, address);
 
     bool ret = VMI_SUCCESS == vmi_write(vmi, &ctx, input_size, input, NULL);
     free(input);
@@ -55,9 +58,15 @@ static bool fuzz_fork(void)
 
     if ( debug ) printf("Starting fuzz loop\n");
     loop(vmi);
-    if ( debug ) printf("Stopping fuzz loop. Crash: %i\n", crash);
+    if ( debug ) printf("Stopping fuzz loop.\n");
+
+    printf("Result: %s\n", crash ? "crash" : "no crash");
 
     vmi_pagecache_flush(vmi);
+    vmi_v2pcache_flush(vmi, ~0ull);
+    vmi_pidcache_flush(vmi);
+    vmi_rvacache_flush(vmi);
+    vmi_symcache_flush(vmi);
 
     int rc = xc_memshr_fork_reset(xc, forkdomid);
     if ( debug ) printf("Reset rc: %i\n", rc);
@@ -85,6 +94,7 @@ static void usage(void)
     printf("\t  --json <path to kernel debug json>\n");
     printf("\tOptional inputs:\n");
     printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
+    printf("\t  --input-limit <limit input size>\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
 
     printf("\n\n");
@@ -104,6 +114,7 @@ int main(int argc, char** argv)
         {"domid", required_argument, NULL, 'i'},
         {"json", required_argument, NULL, 'j'},
         {"input", required_argument, NULL, 'f'},
+        {"input-limit", required_argument, NULL, 'L'},
         {"address", required_argument, NULL, 'a'},
         {"limit", required_argument, NULL, 'l'},
         {"setup", no_argument, NULL, 's'},
@@ -119,6 +130,7 @@ int main(int argc, char** argv)
     harness_cpuid = true;
     input_file = NULL;
     input_size = 0;
+    input_limit = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -141,6 +153,9 @@ int main(int argc, char** argv)
             break;
         case 'l':
             limit = strtoull(optarg, NULL, 0);
+            break;
+        case 'L':
+            input_limit = strtoull(optarg, NULL, 0);
             break;
         case 's':
             setup = true;

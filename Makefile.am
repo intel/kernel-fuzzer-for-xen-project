@@ -1,4 +1,4 @@
-bin_PROGRAMS = kernel-fuzzer forkvm
+bin_PROGRAMS = kernel-fuzzer forkvm rwmem
 
 kernel_fuzzer_SOURCES = src/main.c src/private.h \
                         src/signal.c src/signal.h \
@@ -9,18 +9,18 @@ kernel_fuzzer_SOURCES = src/main.c src/private.h \
                         src/forkvm.c src/forkvm.h
 
 kernel_fuzzer_LDADD   = $(LIBS) \
-                        $(GLIB_LIBS) \
                         $(VMI_LIBS) \
-                        $(JSONC_LIBS) \
                         $(CAPSTONE_LIBS)
 kernel_fuzzer_CFLAGS  = -Wall -Wextra -fstack-protector \
                         $(CFLAGS) \
-                        $(GLIB_CFLAGS) \
                         $(VMI_CFLAGS) \
-                        $(JSONC_CFLAGS) \
                         $(CAPSTONE_CFLAGS)
 
 forkvm_SOURCES = src/forkvm_main.c src/forkvm.c src/forkvm.h
+
+rwmem_SOURCES = src/rwmem.c src/vmi.c src/vmi.h
+rwmem_LDADD = $(LIBS) $(VMI_LIBS)
+rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
 
 EXTRA_DIST = configure.ac README.md \
              tools/README tools/Makefile tools/vmfork.go \

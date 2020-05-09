@@ -12,10 +12,6 @@
 #include <sys/shm.h>
 #include <sys/wait.h>
 
-#include <libvmi/libvmi.h>
-#include <libvmi/events.h>
-#include <libvmi/x86.h>
-
 #include <capstone.h>
 
 #include "signal.h"

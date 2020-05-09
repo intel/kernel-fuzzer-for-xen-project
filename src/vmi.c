@@ -1,4 +1,9 @@
-#include "private.h"
+#include "vmi.h"
+
+extern addr_t target_pagetable;
+extern addr_t start_rip;
+extern os_t os;
+extern int interrupted;
 
 bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bool init_events, bool init_os)
 {

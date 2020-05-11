@@ -60,20 +60,18 @@ static bool fuzz_fork(void)
     loop(vmi);
     if ( debug ) printf("Stopping fuzz loop.\n");
 
-    printf("Result: %s\n", crash ? "crash" : "no crash");
-
     vmi_pagecache_flush(vmi);
-    vmi_v2pcache_flush(vmi, ~0ull);
+    vmi_v2pcache_flush(vmi, target_pagetable);
     vmi_pidcache_flush(vmi);
     vmi_rvacache_flush(vmi);
     vmi_symcache_flush(vmi);
 
     int rc = xc_memshr_fork_reset(xc, forkdomid);
-    if ( debug ) printf("Reset rc: %i\n", rc);
 
     if ( afl ) afl_report(crash);
+    else printf("Result: %s\n", crash ? "crash" : "no crash");
 
-    return afl;
+    return afl && !rc;
 }
 
 static void usage(void)

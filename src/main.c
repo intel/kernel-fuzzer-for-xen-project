@@ -47,7 +47,11 @@ static bool fuzz_fork(void)
 
     crash = 0;
 
-    if ( afl ) afl_wait();
+    if ( afl )
+    {
+        afl_rewind(start_rip);
+        afl_wait();
+    }
 
     afl_get_input();
 
@@ -224,8 +228,6 @@ int main(int argc, char** argv)
     printf("Fork VM created: %i\n", forkdomid);
 
     afl_setup();
-
-    afl_dummy_instrument();
 
     make_fork_ready();
 

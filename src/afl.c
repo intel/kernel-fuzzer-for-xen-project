@@ -22,13 +22,11 @@ static unsigned int afl_inst_rms = MAP_SIZE;
 static char *id_str;
 unsigned long prev_loc;
 
-void afl_dummy_instrument(void)
+void afl_rewind(unsigned long start)
 {
-    if ( !id_str )
-        return;
-
-    afl_area_ptr[__LINE__ ^ prev_loc]++;
-    prev_loc = __LINE__ >> 1;
+    prev_loc  = (start >> 4) ^ (start << 8);
+    prev_loc &= MAP_SIZE - 1;
+    prev_loc >>= 1;
 }
 
 void afl_instrument_location(unsigned long cur_loc)

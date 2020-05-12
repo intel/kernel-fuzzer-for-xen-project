@@ -283,8 +283,8 @@ sudo insmod testmodule.ko
 ```
 
 The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kernel-fuzzer` should have now also exited with a message `Parent ready`.
- 
-# 17. Star fuzzing using AFL <a name="section-17"></a>
+
+# 17. Start fuzzing using AFL <a name="section-17"></a>
 ---------------------------------
 Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`. You also have to first seed your fuzzer with an input that doesn't produces a crash in the code segment being fuzzed.
 

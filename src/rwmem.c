@@ -89,19 +89,26 @@ int main(int argc, char** argv)
 
     unsigned char *buffer = malloc(limit);
     size_t fsize;
+    FILE *i = NULL;
 
-    FILE *i = fopen(filepath,"r+");
-    if ( i )
+    if ( read )
     {
-        if ( read && VMI_SUCCESS == vmi_read(vmi, &ctx, limit, buffer, NULL) && 1 == fwrite(buffer, limit, 1, i) )
+        i = fopen(filepath,"w+");
+
+        if ( i && VMI_SUCCESS == vmi_read(vmi, &ctx, limit, buffer, NULL) && 1 == fwrite(buffer, limit, 1, i) )
             printf("Read operation success: %lu bytes from 0x%lx\n", limit, address);
+    }
 
-        if ( write && (fsize = fread(buffer, limit, 1, i)) && VMI_SUCCESS == vmi_write(vmi, &ctx, fsize, buffer, NULL) )
+    if ( write )
+    {
+        i = fopen(filepath,"r");
+
+        if ( i && (fsize = fread(buffer, limit, 1, i)) && VMI_SUCCESS == vmi_write(vmi, &ctx, fsize, buffer, NULL) )
             printf("Write operation success: %lu bytes to 0x%lx\n", fsize, address);
+    }
 
+    if ( i )
         fclose(i);
-    } else
-        printf("Failed to open %s\n", filepath);
 
     free(buffer);
     vmi_destroy(vmi);

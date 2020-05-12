@@ -72,7 +72,10 @@ void afl_setup(void) {
     /* Tell AFL we are alive */
     unsigned char tmp[4];
     if (write(FORKSRV_FD + 1, tmp, 4) == 4)
+    {
         afl = true;
+        afl_instrument_location(start_rip);
+    }
 }
 
 void afl_get_input(void)

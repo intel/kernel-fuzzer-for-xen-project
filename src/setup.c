@@ -25,9 +25,10 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     vmi_pause_vm(vmi);
     parent_ready = 1;
     interrupted = 1;
-    vmi_clear_event(vmi, event, NULL);
 
     printf("Parent VM is paused right after the harness CPUID @ 0x%lx\n", event->x86_regs->rip);
+
+    vmi_clear_event(vmi, event, NULL);
 
     return 0;
 }
@@ -95,6 +96,14 @@ bool make_parent_ready(void)
         goto done;
     }
 
+    vcpus = vmi_get_num_vcpus(vmi);
+
+    if ( vcpus > 1 )
+    {
+        fprintf(stderr, "The target domain has more then 1 vCPUs, not supported\n");
+        return false;
+    }
+
     if ( !domain )
         domain = vmi_get_name(vmi);
     if ( !domid )
@@ -110,7 +119,6 @@ bool make_parent_ready(void)
         goto done;
     }
 
-    vcpus = vmi_get_num_vcpus(vmi);
     setup_sinks(vmi);
 
     printf("Parent ready\n");

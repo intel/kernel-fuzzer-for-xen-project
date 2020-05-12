@@ -136,13 +136,13 @@ You might also want to save this as a script or add it to [/etc/rc.local](https:
 
 # 6. Create VM <a name="section-6"></a>
 ----------------------------------
-Paste the following as your domain config, for example into `debian.cfg`:
+Paste the following as your domain config, for example into `debian.cfg`, tune it as you see fit. It's important the VM has only a single vCPU.
 
 ```
 name="debian"
 builder="hvm"
 vcpus=1
-maxcpus=1
+maxvcpus=1
 memory=2048
 maxmem=2048
 hap=1
@@ -297,7 +297,7 @@ sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain d
 
 You can also specify the `--limit` option of how many control-flow instructions you want to encounter before timing out the fuzz iteration. This is an alternative to the AFL built-in time-out model.
 
-The speed of the fuzzer will vary based on how much code you are fuzzing. The more code you are exercises the fewer iterations per second you will see. The testmodule included with the project has been observed to produce a speed of 200-600 iterations per second on i5 family CPUs. Don't forget: you can run multiple instances of the fuzzer to speed things up even further by utilizing more CPU cores on your machine.
+The speed of the fuzzer will vary based on how much code you are fuzzing. The more code you are exercising the fewer iterations per second you will see. The testmodule included with the project has been observed to produce a speed of 200-600 iterations per second on i5 family CPUs. Don't forget: you can run multiple instances of the fuzzer to speed things up even further by utilizing more CPU cores on your machine.
 
 After you are finished with fuzzing, the VM can be unpaused and should resume normally without any side-effects.
 

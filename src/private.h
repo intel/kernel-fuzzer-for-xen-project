@@ -23,7 +23,8 @@
 
 char *domain;
 char *json;
-char *input_file;
+FILE *input_file;
+char *input_path;
 size_t input_size;
 size_t input_limit;
 unsigned char *input;
@@ -33,6 +34,7 @@ bool parent_ready;
 bool crash;
 bool setup;
 bool debug;
+bool loopmode;
 addr_t address;
 unsigned long limit;
 

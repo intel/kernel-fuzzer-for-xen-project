@@ -38,7 +38,7 @@ static const char *traptype[] = {
 
 #define TRACER_BUFFER_SIZE 256
 
-static unsigned long tracer_counter;
+unsigned long tracer_counter;
 
 extern int interrupted;
 extern csh cs_handle;
@@ -147,7 +147,7 @@ done:
 
 static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    if ( debug ) printf("[TRACER %s] 0x%lx.\n", traptype[event->type], event->x86_regs->rip);
+    if ( debug ) printf("[TRACER %s] 0x%lx. Limit: %lu/%lu\n", traptype[event->type], event->x86_regs->rip, tracer_counter, limit);
 
     int c;
     for (c=0; c < __SINK_MAX; c++)
@@ -246,6 +246,28 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     return 0;
 }
 
+/*
+ * If you don't care about the parent after the fuzzing is done
+ * you could do this step in setup_sinks(), that way the parent
+ * already has the sinks breakpointed before the fork.
+ * Saves you a couple full-page copies that we otherwise do for
+ * each fork. Can improve performance a bit.
+ */
+static bool trap_sinks(vmi_instance_t vmi)
+{
+    int c;
+    for(c=0; c < __SINK_MAX; c++)
+    {
+        if ( VMI_SUCCESS == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
+        {
+            if ( debug ) printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx\n", sinks[c], sink_vaddr[c], sink_paddr[c]);
+        } else
+            return false;
+    }
+
+    return true;
+}
+
 bool setup_sinks(vmi_instance_t vmi)
 {
     int c;
@@ -257,22 +279,9 @@ bool setup_sinks(vmi_instance_t vmi)
             return false;
         }
 
-        vmi_pagetable_lookup(vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]);
-        vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL);
-    }
-
-    return true;
-}
-
-static bool trap_sinks(vmi_instance_t vmi)
-{
-    int c;
-    for(c=0; c < __SINK_MAX; c++)
-    {
-        if ( VMI_SUCCESS == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
-        {
-            if ( debug ) printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx\n", sinks[c], sink_vaddr[c], sink_paddr[c]);
-        } else
+        if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
+            return false;
+        if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
             return false;
     }
 
@@ -310,14 +319,13 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
 
     next_cf_vaddr = 0;
     next_cf_paddr = 0;
+    tracer_counter = 0;
 
     if ( !next_cf_insn(vmi, address) )
     {
         if ( debug ) printf("Failed starting trace from 0x%lx\n", address);
         return false;
     }
-
-    tracer_counter = 0;
 
     breakpoint_next_cf(vmi);
     trap_sinks(vmi);

@@ -6,6 +6,7 @@ extern int interrupted;
 static void close_handler(int sig)
 {
     interrupted = sig;
+    loopmode = false;
 }
 
 void setup_handlers(void)

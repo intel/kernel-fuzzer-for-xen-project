@@ -78,39 +78,6 @@ void afl_setup(void) {
     }
 }
 
-void afl_get_input(void)
-{
-    if ( !input_file )
-        return;
-
-    if ( debug ) printf("Get input from %s\n", input_file);
-
-    FILE *i = fopen(input_file,"r");
-    if ( !i )
-        return;
-
-    fseek (i , 0 , SEEK_END);
-    input_size = ftell (i);
-    rewind (i);
-
-    if ( !input_size )
-        return;
-
-    input = malloc (input_size);
-    if ( !input )
-        return;
-
-    if ( input_size != fread (input,1,input_size,i) )
-    {
-        free(input);
-        input = NULL;
-    }
-
-    fclose(i);
-
-    if ( debug ) printf("Got input size %lu\n", input_size);
-}
-
 /*
  * Let's wait for AFL to send us something down the pipe
  * and respond with a fake pid as if the forkserver was running.

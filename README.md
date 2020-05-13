@@ -64,10 +64,10 @@ sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
 Now we can compile Xen
 ```
 cd xen
-echo "export XEN_CONFIG_EXPERT=y" >> ~/.bashrc
-. ~/.bashrc
+echo XEN_CONFIG_EXPERT=y > .config
+echo CONFIG_MEM_SHARING=y > xen/.config
 ./configure --disable-pvshim --enable-githttp
-echo CONFIG_MEM_SHARING=y > xen/.config && make -C xen olddefconfig
+make -C xen olddefconfig
 make -j4 dist-xen
 make -j4 dist-tools
 sudo su

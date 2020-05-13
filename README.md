@@ -286,13 +286,13 @@ The VM's console should now appear frozen. This is normal and what's expected. Y
 
 # 17. Start fuzzing using AFL <a name="section-17"></a>
 ---------------------------------
-Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`. You also have to first seed your fuzzer with an input that doesn't produces a crash in the code segment being fuzzed.
+Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag, its size via `--input-limit` and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`. You also have to first seed your fuzzer with an input that doesn't produces a crash in the code segment being fuzzed.
 
 ```
 mkdir input
 mkdir output
 echo -n "not_beef" > input/beef
-sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain debian --json ~/debian.json --input @@ --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 You can also specify the `--limit` option of how many control-flow instructions you want to encounter before timing out the fuzz iteration. This is an alternative to the AFL built-in time-out model.
@@ -306,9 +306,23 @@ After you are finished with fuzzing, the VM can be unpaused and should resume no
 You can run the kernel fuzzer directly to inject an input into a VM fork without AFL, adding the `--debug` option will provide you with a verbose output.
 
 ```
-sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --input-limit <MAX SIZE TO WRITE> --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
+# 19. FAQ
+---------------------------------
+
+> Can I run this on ring3 applications?
+
+You likely get better performance if you run AFL natively on a ring3 application but nothing prevents you from running it via this tool. You would need to adjust the sink points in `src/tracer.c` to catch the crash handlers that are called for ring3 apps. For example `do_trap_error` in Linux handles segfaults, you would probably want to catch that.
+
+> Can I fuzz Windows?
+
+This tool currently only targets Linux. You can modify the harness to target Windows or any other operating system by adjusting the sink points in `src/tracer.c` that are used to catch a crash condition. You could also manually define the sink points' addresses in case the operating system is not supported by LibVMI. In case you want to fuzz closed-source portions of Windows where you can't inject the `cpuid`-based harness, you can use `--harness breakpoint` to switch to using breakpoints as your harness. This allows you to mark the code-region to fuzz with a standard debugger like WinDBG.
+
+> Can I just pipe /dev/random in as fuzzing input?
+
+Yes! You can use `--loopmode` to simply read input from whatever source you want and pipe it into the VM forks. In this mode coverage trace is disabled so you will see more iterations per second.
 
 ---------------------------------
 *Other names and brands may be claimed as the property of others

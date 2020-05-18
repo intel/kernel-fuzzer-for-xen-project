@@ -264,7 +264,7 @@ bool setup_sinks(vmi_instance_t vmi)
             return false;
         }
 
-        if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
+        if ( VMI_FAILURE == vmi_translate_kv2p(vmi, sink_vaddr[c], &sink_paddr[c]) )
             return false;
         if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
             return false;

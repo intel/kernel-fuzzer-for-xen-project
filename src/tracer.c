@@ -253,21 +253,6 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
  * Saves you a couple full-page copies that we otherwise do for
  * each fork. Can improve performance a bit.
  */
-static bool trap_sinks(vmi_instance_t vmi)
-{
-    int c;
-    for(c=0; c < __SINK_MAX; c++)
-    {
-        if ( VMI_SUCCESS == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
-        {
-            if ( debug ) printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx\n", sinks[c], sink_vaddr[c], sink_paddr[c]);
-        } else
-            return false;
-    }
-
-    return true;
-}
-
 bool setup_sinks(vmi_instance_t vmi)
 {
     int c;
@@ -283,9 +268,22 @@ bool setup_sinks(vmi_instance_t vmi)
             return false;
         if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
             return false;
+        if ( VMI_FAILURE == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
+            return false;
+
+        if ( debug )
+            printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx, backup 0x%x\n",
+                   sinks[c], sink_vaddr[c], sink_paddr[c], sink_backup[c]);
     }
 
     return true;
+}
+
+void clear_sinks(vmi_instance_t vmi)
+{
+    int c;
+    for(c=0; c < __SINK_MAX; c++)
+        vmi_write_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL);
 }
 
 bool setup_trace(vmi_instance_t vmi)
@@ -328,7 +326,6 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
     }
 
     breakpoint_next_cf(vmi);
-    trap_sinks(vmi);
     return true;
 }
 

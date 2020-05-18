@@ -329,6 +329,11 @@ int main(int argc, char** argv)
     vmi_destroy(vmi);
 
 done:
+    if ( parent_vmi )
+    {
+        clear_sinks(parent_vmi);
+        vmi_destroy(parent_vmi);
+    }
     if ( forkdomid )
         xc_domain_destroy(xc, forkdomid);
     xc_interface_close(xc);

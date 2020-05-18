@@ -88,44 +88,38 @@ static void waitfor_start(vmi_instance_t vmi)
 
 bool make_parent_ready(void)
 {
-    bool ret = false;
-
-    if ( !setup_vmi(&vmi, domain, domid, json, setup, true) )
+    if ( !setup_vmi(&parent_vmi, domain, domid, json, setup, true) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");
-        goto done;
+        return false;
     }
 
-    vcpus = vmi_get_num_vcpus(vmi);
+    vcpus = vmi_get_num_vcpus(parent_vmi);
 
     if ( vcpus > 1 )
     {
-        fprintf(stderr, "The target domain has more then 1 vCPUs, not supported\n");
+        fprintf(stderr, "The target domain has more then 1 vCPUs: %u, not supported\n", vcpus);
         return false;
     }
 
     if ( !domain )
-        domain = vmi_get_name(vmi);
+        domain = vmi_get_name(parent_vmi);
     if ( !domid )
-        domid = vmi_get_vmid(vmi);
+        domid = vmi_get_vmid(parent_vmi);
     if ( setup )
-        waitfor_start(vmi);
+        waitfor_start(parent_vmi);
     else
-        parent_ready = true;
+        parent_ready = setup_sinks(parent_vmi);
 
     if ( !parent_ready )
     {
-        fprintf(stderr, "Unable to make domain fork ready\n");
-        goto done;
+        fprintf(stderr, "Unable to make parent domain fork ready\n");
+        vmi_destroy(parent_vmi);
+        parent_vmi = NULL;
+        return false;
     }
 
-    setup_sinks(vmi);
-
     printf("Parent ready\n");
-    ret = true;
 
-done:
-    vmi_destroy(vmi);
-    vmi = NULL;
-    return ret;
+    return true;
 }

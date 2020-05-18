@@ -11,8 +11,21 @@ enum sink_enum {
 };
 /* Now define what symbol each enum entry corresponds to in the debug json */
 static const char *sinks[] = {
-    [OOPS_BEGIN] = "oops_begin",
     [PANIC] = "panic",
+
+    /*
+     * We can define as many sink points as we want. These sink points don't have
+     * to be strictly functions that handle "crash" situations. We can define any
+     * code location as a sink point that we would want to know about if it is reached
+     * during fuzzing. For example the testmodule triggering a NULL-deref doesn't crash
+     * the kernel, it simply causes an "oops" message to be printed to the kernel logs.
+     * However, if there is an input that causes something like that then it warrants
+     * being recorded.
+     *
+     * So in essence we can define the sink points as anything of interest that we would
+     * want AFL to record if its reached.
+     */
+    [OOPS_BEGIN] = "oops_begin",
 };
 
 /* !!!!!!!!!!!!!!!! */

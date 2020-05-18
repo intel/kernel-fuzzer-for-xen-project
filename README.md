@@ -37,7 +37,7 @@ This project is licensed under the terms of the MIT license
 # 1. Install dependencies <a name="section-1"></a>
 ----------------------------------
 ```
-sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc libsdl1.2-dev uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libcapstone-dev
+sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc libsdl1.2-dev uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libcapstone-dev libsystemd-dev
 ```
 
 # 2. Grab the project and all submodules <a name="section-2"></a>
@@ -127,7 +127,8 @@ dd if=/dev/zero of=vmdisk.img bs=1G count=20
 ----------------------------------
 ```
 sudo brctl addbr xenbr0
-sudo ifconfig xenbr0 10.0.0.1 netmask 255.255.255.0 up
+sudo ip addr add 10.0.0.1/24 dev xenbr0
+sudo ip link set xenbr0 up
 sudo echo 1 > /proc/sys/net/ipv4/ip_forward
 sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```

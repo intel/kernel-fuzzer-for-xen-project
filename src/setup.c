@@ -42,7 +42,11 @@ static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
     };
 
     if ( VMI_SUCCESS == vmi_write_8(vmi, &ctx, &start_byte) )
+    {
+        event->interrupt_event.reinject = 0;
         parent_ready = 1;
+    } else
+        event->interrupt_event.reinject = 1;
 
     vmi_pause_vm(vmi);
     interrupted = 1;

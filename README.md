@@ -174,10 +174,11 @@ Follow the installation instructions in the VNC session. Configure the network m
 
 # 7. Grab the kernel's debug symbols & headers <a name="section-7"></a>
 ----------------------------------
-On Debian systems you can install everything right away
+On Debian systems you can install everything right away:
 
 ```
-sudo apt update && sudo apt install linux-image-$(uname -r)-dbg linux-headers-$(uname-r)
+su -
+apt update && apt install linux-image-$(uname -r)-dbg linux-headers-$(uname -r)
 ```
 
 On Ubuntu to install the Kernel debug symbols please follow the following tutorial: [https://wiki.ubuntu.com/Debug%20Symbol%20Packages](https://wiki.ubuntu.com/Debug%20Symbol%20Packages)

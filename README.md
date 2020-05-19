@@ -177,7 +177,8 @@ Follow the installation instructions in the VNC session. Configure the network m
 On Debian systems you can install everything right away
 
 ```
-sudo apt update && sudo apt install linux-image-$(uname -r)-dbg linux-headers-$(uname-r)
+su -
+apt update && sudo apt install linux-image-$(uname -r)-dbg linux-headers-$(uname -r)
 ```
 
 On Ubuntu to install the Kernel debug symbols please follow the following tutorial: [https://wiki.ubuntu.com/Debug%20Symbol%20Packages](https://wiki.ubuntu.com/Debug%20Symbol%20Packages)
@@ -186,7 +187,7 @@ From the VM copy `/usr/lib/debug/boot/vmlinux-$(uname -r)` and `/boot/System.map
 
 # 8. Configure the VM's console <a name="section-8"></a>
 ---------------------------------
-Edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `sudo update-grub` afterwards.
+Edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `update-grub` afterwards and `reboot`.
 
 # 9. Build the kernel's debug JSON profile <a name="section-9"></a>
 ---------------------------------

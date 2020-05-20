@@ -11,7 +11,7 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     if ( event->cpuid_event.leaf == 0x13371337 )
     {
-        printf("Got start cpuid callback with leaf: 0x%x @ 0x%lx\n", event->cpuid_event.leaf, event->x86_regs->rip);
+        printf("Got start cpuid callback with leaf: 0x%x 0x%lx\n", event->cpuid_event.leaf, event->x86_regs->rip);
 
         vmi_clear_event(vmi, event, NULL);
         return VMI_EVENT_RESPONSE_SET_REGISTERS | VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
@@ -115,15 +115,13 @@ bool make_parent_ready(void)
     else
         parent_ready = setup_sinks(parent_vmi);
 
-    if ( !parent_ready )
+    if ( !parent_ready || setup )
     {
-        fprintf(stderr, "Unable to make parent domain fork ready\n");
         vmi_destroy(parent_vmi);
         parent_vmi = NULL;
-        return false;
     }
 
-    printf("Parent ready\n");
+    printf("Parent %s ready\n", parent_ready ? "is" : "is not");
 
-    return true;
+    return parent_ready;
 }

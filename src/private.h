@@ -4,7 +4,6 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
 #include <getopt.h>
 #include <unistd.h>

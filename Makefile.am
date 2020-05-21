@@ -1,4 +1,4 @@
-bin_PROGRAMS = kernel-fuzzer forkvm rwmem
+bin_PROGRAMS = kernel-fuzzer forkvm rwmem stepper
 
 kernel_fuzzer_SOURCES = src/main.c src/private.h \
                         src/signal.c src/signal.h \
@@ -21,6 +21,10 @@ forkvm_SOURCES = src/forkvm_main.c src/forkvm.c src/forkvm.h
 rwmem_SOURCES = src/rwmem.c src/vmi.c src/vmi.h
 rwmem_LDADD = $(LIBS) $(VMI_LIBS)
 rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
+
+stepper_SOURCES = src/stepper.c src/vmi.c src/vmi.h src/signal.c src/signal.h
+stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS)
+stepper_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS)
 
 EXTRA_DIST = configure.ac README.md \
              tools/README tools/Makefile tools/vmfork.go \

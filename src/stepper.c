@@ -26,7 +26,7 @@ static void usage(void)
     printf("\t --loopmode\n");
 }
 
-event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
@@ -34,22 +34,32 @@ event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = event->x86_regs->cr3,
-        .addr = event->x86_regs->rip
+        .dtb = dtb,
+        .addr = addr
     };
 
     vmi_read(vmi, &ctx, 15, buf, &read);
 
     if ( read )
-        insn_count = cs_disasm(cs_handle, buf, read, event->x86_regs->rip, 0, &insn);
+        insn_count = cs_disasm(cs_handle, buf, read, dtb, 0, &insn);
 
-    printf("%lu: 0x%lx \t %s\n", ++count, event->x86_regs->rip, insn_count ? insn[0].mnemonic : "-");
-
-    if ( count >= limit )
-        interrupted = 1;
+    printf("%lu: 0x%lx \t %s\n", count, addr, insn_count ? insn[0].mnemonic : "-");
 
     if ( insn_count )
         cs_free(insn, insn_count);
+}
+
+event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    count++;
+
+    print_instruction(vmi, event->x86_regs->cr3, event->x86_regs->rip);
+
+    if ( count >= limit )
+    {
+        interrupted = 1;
+        return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+    }
 
     return 0;
 }
@@ -105,19 +115,28 @@ int main(int argc, char** argv)
 
     setup_handlers();
 
+    registers_t regs = {0};
+    vmi_get_vcpuregs(vmi, &regs, 0);
+
+    start_rip = regs.x86.rip;
+    target_pagetable = regs.x86.cr3;
+
     vmi_event_t singlestep_event;
     SETUP_SINGLESTEP_EVENT(&singlestep_event, 1, tracer_cb, 1);
 
-    if ( VMI_SUCCESS != vmi_register_event(vmi, &singlestep_event) )
-        goto done;
-
     do {
+        print_instruction(vmi, target_pagetable, start_rip);
+
+        vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
+
         vmi_resume_vm(vmi);
         while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
         {}
 
         vmi_pause_vm(vmi);
+        vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 0);
         vmi_pagecache_flush(vmi);
+
         rc = xc_memshr_fork_reset(xc, domid);
 
         printf("----------------------------------------\n");
@@ -135,7 +154,6 @@ done:
     if ( xc )
         xc_interface_close(xc);
     cs_close(&cs_handle);
-    vmi_clear_event(vmi, &singlestep_event, NULL);
     vmi_destroy(vmi);
 
     return 0;

@@ -24,7 +24,7 @@ bool fork_vm(void)
     if ( (rc = xc_domain_create(xc, &forkdomid, &create)) )
         return false;
 
-    if ( (rc = xc_memshr_fork(xc, domid, forkdomid, true)) )
+    if ( (rc = xc_memshr_fork(xc, domid, forkdomid, true, true)) )
     {
         xc_domain_destroy(xc, forkdomid);
         return false;

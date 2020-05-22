@@ -257,13 +257,6 @@ int main(int argc, char** argv)
     if ( setup )
         return parent_ready ? 0 : -1;
 
-    input_file = fopen(input_path,"r");
-    if ( !input_file )
-    {
-        printf("Failed to open input file %s\n", input_path);
-        return -1;
-    }
-
     if ( !(xc = xc_interface_open(0, 0, 0)) )
     {
         fprintf(stderr, "Failed to grab xc interface\n");
@@ -283,6 +276,14 @@ int main(int argc, char** argv)
     }
 
     afl_setup();
+
+    input_file = fopen(input_path,"r"); // Sanity check
+    if ( !input_file )
+    {
+        printf("Failed to open input file %s\n", input_path);
+        return -1;
+    }
+    fclose(input_file); // Closing for now, will reopen when needed
 
     if ( !afl ) printf("Fork VM created: %i\n", forkdomid);
 

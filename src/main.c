@@ -2,20 +2,28 @@
 
 static void get_input(void)
 {
-    if ( !input_file || !input_limit )
+    if ( !input_limit )
         return;
 
     if ( debug ) printf("Get %lu bytes of input from %s\n", input_limit, input_path);
 
+    input_file = fopen(input_path, "r");
+    if (!input_file){
+        return; 
+    }
+
     input = malloc(input_size);
-    if ( !input )
+    if ( !input ){
+        fclose(input_file);
         return;
+    }
 
     if ( !(input_size = fread(input, 1, input_limit, input_file)) )
     {
         free(input);
         input = NULL;
     }
+    fclose(input_file);
 
     if ( debug ) printf("Got input size %lu\n", input_size);
 }

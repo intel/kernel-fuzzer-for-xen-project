@@ -107,7 +107,7 @@ static inline bool is_cf(unsigned int id)
     return false;
 }
 
-static bool next_cf_insn(vmi_instance_t vmi, addr_t start)
+static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
 {
     cs_insn *insn;
     size_t count;
@@ -117,13 +117,13 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t start)
     bool found = false;
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = target_pagetable,
+        .dtb = dtb,
         .addr = start
     };
 
     if ( VMI_FAILURE == vmi_read(vmi, &ctx, TRACER_BUFFER_SIZE, buff, &read) )
     {
-        if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, target_pagetable);
+        if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, dtb);
         goto done;
     }
 
@@ -136,9 +136,9 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t start)
              if ( is_cf(insn[j].id) )
              {
                 next_cf_vaddr = insn[j].address;
-                if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, next_cf_vaddr, &next_cf_paddr) )
+                if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, next_cf_vaddr, &next_cf_paddr) )
                 {
-                    if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, target_pagetable);
+                    if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, dtb);
                     break;
                 }
 
@@ -203,7 +203,7 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     if ( VMI_EVENT_SINGLESTEP == event->type )
     {
-        if ( next_cf_insn(vmi, event->x86_regs->rip) )
+        if ( next_cf_insn(vmi, event->x86_regs->cr3, event->x86_regs->rip) )
             breakpoint_next_cf(vmi);
         else
         {
@@ -259,13 +259,6 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     return 0;
 }
 
-/*
- * If you don't care about the parent after the fuzzing is done
- * you could do this step in setup_sinks(), that way the parent
- * already has the sinks breakpointed before the fork.
- * Saves you a couple full-page copies that we otherwise do for
- * each fork. Can improve performance a bit.
- */
 bool setup_sinks(vmi_instance_t vmi)
 {
     int c;
@@ -332,7 +325,7 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
     next_cf_paddr = 0;
     tracer_counter = 0;
 
-    if ( !next_cf_insn(vmi, address) )
+    if ( !next_cf_insn(vmi, target_pagetable, address) )
     {
         if ( debug ) printf("Failed starting trace from 0x%lx\n", address);
         return false;

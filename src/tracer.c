@@ -124,6 +124,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t start)
     if ( VMI_FAILURE == vmi_read(vmi, &ctx, TRACER_BUFFER_SIZE, buff, &read) )
     {
         if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, target_pagetable);
+        crash = 1; // May be the result of a currupt branch
         goto done;
     }
 

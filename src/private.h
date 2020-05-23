@@ -36,6 +36,7 @@ bool debug;
 bool loopmode;
 addr_t address;
 unsigned long limit;
+addr_t kpgd;
 
 xc_interface *xc;
 vmi_instance_t parent_vmi, vmi;

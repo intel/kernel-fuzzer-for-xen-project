@@ -6,12 +6,10 @@
  */
 enum sink_enum {
     OOPS_BEGIN,
-    PANIC,
     __SINK_MAX
 };
 /* Now define what symbol each enum entry corresponds to in the debug json */
 static const char *sinks[] = {
-    [PANIC] = "panic",
 
     /*
      * We can define as many sink points as we want. These sink points don't have
@@ -25,7 +23,7 @@ static const char *sinks[] = {
      * So in essence we can define the sink points as anything of interest that we would
      * want AFL to record if its reached.
      */
-    [OOPS_BEGIN] = "oops_begin",
+    [OOPS_BEGIN] = "KiDispatchException",
 };
 
 /* !!!!!!!!!!!!!!!! */
@@ -277,8 +275,13 @@ bool setup_sinks(vmi_instance_t vmi)
             return false;
         }
 
-        if ( VMI_FAILURE == vmi_translate_kv2p(vmi, sink_vaddr[c], &sink_paddr[c]) )
+	if (!kpgd){
+	    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, sink_vaddr[c], &sink_paddr[c]) )
             return false;
+	}else{
+	    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, kpgd, sink_vaddr[c], &sink_paddr[c]))
+            return false;
+	}
         if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
             return false;
         if ( VMI_FAILURE == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )

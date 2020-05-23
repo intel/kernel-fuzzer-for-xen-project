@@ -144,6 +144,7 @@ static void usage(void)
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
     printf("\t  --refork <create new fork after # of executions>\n");
+    printf("\t  --kpgd <0xdeadc0de> KPGD address for Windows KPTI\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -171,10 +172,11 @@ int main(int argc, char** argv)
         {"harness", required_argument, NULL, 'H'},
         {"start-byte", required_argument, NULL, 'S'},
         {"refork", required_argument, NULL, 'r'},
+        {"kpgd", required_argument, NULL, 'K'},
         {"loop", no_argument, NULL, 'O'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:svhO";
+    const char* opts = "d:i:j:f:a:l:F:H:S:K:svhO";
     limit = ~0;
     unsigned long refork = 0;
 
@@ -230,6 +232,9 @@ int main(int argc, char** argv)
         case 'O':
             loopmode = true;
             break;
+	case 'K':
+	    kpgd = strtoull(optarg, NULL, 0);
+	    break;
         case 'h': /* fall-through */
         default:
             usage();

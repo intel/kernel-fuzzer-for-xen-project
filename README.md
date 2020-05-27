@@ -22,15 +22,16 @@ This project is licensed under the terms of the MIT license
 7. [Grab the kernel's debug symbols & headers](#section-7)
 8. [Configure the VM's console](#section-8)
 9. [Build the kernel's debug JSON profile](#section-9)
-10. [Compile & install LibVMI](#section-10)
-11. [Compile kernel-fuzzer](#section-11)
-12. [Patch AFL](#section-12)
-13. [Add harness](#section-13)
-14. [Setup the VM for fuzzing](#section-14)
-15. [Connect to the VM's console](#section-15)
-16. [Insert the target kernel module](#section-16)
-17. [Star fuzzing using AFL](#section-17)
-18. [Debugging](#section-18)
+10. [Compile & install Capstone](#section-10)
+10. [Compile & install LibVMI](#section-11)
+11. [Compile kernel-fuzzer](#section-12)
+12. [Patch AFL](#section-13)
+13. [Add harness](#section-14)
+14. [Setup the VM for fuzzing](#section-15)
+15. [Connect to the VM's console](#section-16)
+16. [Insert the target kernel module](#section-17)
+17. [Star fuzzing using AFL](#section-18)
+18. [Debugging](#section-19)
 
 # Setup instruction for Debian/Ubuntu:
 
@@ -39,7 +40,7 @@ The following instructions have been mainly tested on Debian Bullseye and Ubuntu
 # 1. Install dependencies <a name="section-1"></a>
 ----------------------------------
 ```
-sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc libsdl1.2-dev uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libcapstone-dev libsystemd-dev
+sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc libsdl1.2-dev uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libsystemd-dev cmake
 ```
 
 # 2. Grab the project and all submodules <a name="section-2"></a>
@@ -200,7 +201,21 @@ go build
 cd ..
 ```
 
-# 10. Compile & install LibVMI <a name="section-10"></a>
+# 10. Compile & install Capstone <a name="section-10"></a>
+---------------------------------
+We use a more recent version from the submodule (4.0.2) then what most distros ship by default. If your distro ships a newer version you could also just install `libcapstone-dev`.
+
+```
+cd capstone
+mkdir build
+cd build
+cmake ..
+make
+make install
+cd ../..
+```
+
+# 11. Compile & install LibVMI <a name="section-11"></a>
 ---------------------------------
 ```
 cd libvmi
@@ -216,7 +231,7 @@ Test that base VMI works with:
 sudo vmi-process-list --name debian --json ~/debian.json
 ```
 
-# 11. Compile kernel-fuzzer <a name="section-11"></a>
+# 12. Compile kernel-fuzzer <a name="section-12"></a>
 ---------------------------------
 ```
 autoreconf -vif
@@ -224,7 +239,7 @@ autoreconf -vif
 make -j4
 ```
 
-# 12. Patch AFL <a name="section-12"></a>
+# 13. Patch AFL <a name="section-13"></a>
 ---------------------------------
 ```
 cd AFL
@@ -233,7 +248,7 @@ make
 cd ..
 ```
 
-# 13. Add harness to target kernel module or function <a name="section-13"></a>
+# 14. Add harness to target kernel module or function <a name="section-14"></a>
 ---------------------------------
 The target kernel module needs to be harnessed using two CPUID instructions with leaf 0x13371337.
 See the `testmodule` folder for an example.
@@ -264,7 +279,7 @@ You can insert the harness before and after the code segment you want to fuzz:
     harness();
 ```
 
-# 14. Setup the VM for fuzzing <a name="section-14"></a>
+# 15. Setup the VM for fuzzing <a name="section-15"></a>
 ---------------------------------
 Start `./kernel-fuzzer`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it.
 
@@ -274,7 +289,7 @@ sudo ./kernel-fuzzer --domain debian --json ~/debian.json --setup
 
 You may optionally want to do this in a `screen` session, or you will need a separate shell to continue.
 
-# 15. Connect to the VM's console <a name="section-15"></a>
+# 16. Connect to the VM's console <a name="section-16"></a>
 ---------------------------------
 ```
 sudo xl console debian
@@ -282,7 +297,7 @@ sudo xl console debian
 
 You should see a login screen when you press enter. Proceed to login.
 
-# 16. Insert the target kernel module <a name="section-16"></a>
+# 17. Insert the target kernel module <a name="section-17"></a>
 ---------------------------------
 ```
 sudo insmod testmodule.ko
@@ -290,7 +305,7 @@ sudo insmod testmodule.ko
 
 The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kernel-fuzzer` should have now also exited with a message `Parent ready`.
 
-# 17. Start fuzzing using AFL <a name="section-17"></a>
+# 18. Start fuzzing using AFL <a name="section-18"></a>
 ---------------------------------
 Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input with `--input` flag, its size via `--input-limit` and the target memory address to write it to via `--address`. With AFL the input file path needs to be `@@`. You also have to first seed your fuzzer with an input that doesn't produces a crash in the code segment being fuzzed.
 
@@ -307,7 +322,7 @@ The speed of the fuzzer will vary based on how much code you are fuzzing. The mo
 
 After you are finished with fuzzing, the VM can be unpaused and should resume normally without any side-effects.
 
-# 18. Debugging <a name="section-18"></a>
+# 19. Debugging <a name="section-19"></a>
 ---------------------------------
 You can run the kernel fuzzer directly to inject an input into a VM fork without AFL, adding the `--debug` option will provide you with a verbose output.
 
@@ -315,7 +330,7 @@ You can run the kernel fuzzer directly to inject an input into a VM fork without
 sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --input-limit <MAX SIZE TO WRITE> --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
-# 19. FAQ
+# 20. FAQ
 ---------------------------------
 
 > Can I run this on ring3 applications?

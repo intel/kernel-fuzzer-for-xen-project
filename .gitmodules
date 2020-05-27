@@ -14,3 +14,7 @@
 	path = AFL
 	url = https://github.com/google/AFL
     ignore = dirty
+[submodule "capstone"]
+	path = capstone
+	url = https://github.com/aquynh/capstone
+    ignore = dirty

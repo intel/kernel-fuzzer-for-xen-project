@@ -9,12 +9,13 @@ static void get_input(void)
 
     input_file = fopen(input_path, "r");
     if (!input_file){
-        return; 
+        return;
     }
 
     input = malloc(input_size);
     if ( !input ){
         fclose(input_file);
+        input_file = NULL;
         return;
     }
 
@@ -24,6 +25,7 @@ static void get_input(void)
         input = NULL;
     }
     fclose(input_file);
+    input_file = NULL;
 
     if ( debug ) printf("Got input size %lu\n", input_size);
 }
@@ -292,6 +294,7 @@ int main(int argc, char** argv)
         return -1;
     }
     fclose(input_file); // Closing for now, will reopen when needed
+    input_file = NULL;
 
     if ( !afl ) printf("Fork VM created: %i\n", forkdomid);
 

@@ -7,6 +7,7 @@
 enum sink_enum {
     OOPS_BEGIN,
     PANIC,
+    PAGE_FAULT,
     __SINK_MAX
 };
 /* Now define what symbol each enum entry corresponds to in the debug json */
@@ -26,6 +27,14 @@ static const char *sinks[] = {
      * want AFL to record if its reached.
      */
     [OOPS_BEGIN] = "oops_begin",
+
+    /*
+     * We interpret a page fault as a crash situation since we really shouldn't
+     * encounter any. The VM forks are running without any devices so even if this
+     * is a legitimate page-fault that would page memory back in, it won't be able
+     * to do that since there is no disk.
+     */
+    [PAGE_FAULT] = "page_fault",
 };
 
 /* !!!!!!!!!!!!!!!! */
@@ -128,6 +137,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
     }
 
     count = cs_disasm(cs_handle, buff, read, start, 0, &insn);
+    if ( debug ) printf("Disassembled %lu instructions\n", count);
     if ( count ) {
         size_t j;
         for ( j=0; j<count; j++) {
@@ -205,12 +215,6 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     {
         if ( next_cf_insn(vmi, event->x86_regs->cr3, event->x86_regs->rip) )
             breakpoint_next_cf(vmi);
-        else
-        {
-            if ( debug ) printf("Pausing VM in singlestep cb\n");
-            vmi_pause_vm(vmi);
-            interrupted = 1;
-        }
 
         return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
     }
@@ -221,6 +225,8 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
      */
     if ( VMI_EVENT_INTERRUPT == event->type )
     {
+        event->interrupt_event.reinject = 0;
+
         /*
          * This is not a SINK breakpoint and it's not the next CF either.
          * Need to reinject if we are using CPUID as the harness.
@@ -243,7 +249,6 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
         }
 
         /* We are at the expected breakpointed CF instruction */
-        event->interrupt_event.reinject = 0;
         vmi_write_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL);
 
         tracer_counter++;

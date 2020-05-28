@@ -15,9 +15,8 @@ static void usage(void)
 {
     printf("Usage:\n");
     printf("\t --domid <domid>\n");
-    printf("\t --read\n");
-    printf("\t --write\n");
-    printf("\t --address <address>\n");
+    printf("\t --read <address>\n");
+    printf("\t --write <address>\n");
     printf("\t --file <input/output file>\n");
     printf("\t --limit <input/output limit>\n");
 }
@@ -29,14 +28,13 @@ int main(int argc, char** argv)
     {
         {"help", no_argument, NULL, 'h'},
         {"domid", required_argument, NULL, 'd'},
-        {"read", no_argument, NULL, 'r'},
-        {"write", no_argument, NULL, 'w'},
-        {"address", required_argument, NULL, 'a'},
+        {"read", required_argument, NULL, 'r'},
+        {"write", required_argument, NULL, 'w'},
         {"limit", required_argument, NULL, 'L'},
         {"file", required_argument, NULL, 'f'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:j:r:w:a:L:f:";
+    const char* opts = "d:j:r:w:L:f:";
     bool read = false, write = false;
     size_t limit = 0;
     addr_t address = 0;
@@ -52,11 +50,10 @@ int main(int argc, char** argv)
             break;
         case 'r':
             read = true;
+            address = strtoull(optarg, NULL, 0);
             break;
         case 'w':
             write = true;
-            break;
-        case 'a':
             address = strtoull(optarg, NULL, 0);
             break;
         case 'L':

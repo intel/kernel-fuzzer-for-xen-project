@@ -12,7 +12,7 @@ static void get_input(void)
         return;
     }
 
-    input = malloc(input_size);
+    input = malloc(input_limit);
     if ( !input ){
         fclose(input_file);
         input_file = NULL;

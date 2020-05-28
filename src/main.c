@@ -173,7 +173,7 @@ int main(int argc, char** argv)
         {"harness", required_argument, NULL, 'H'},
         {"start-byte", required_argument, NULL, 'S'},
         {"refork", required_argument, NULL, 'r'},
-        {"loop", no_argument, NULL, 'O'},
+        {"loopmode", no_argument, NULL, 'O'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:i:j:f:a:l:F:H:S:svhO";

@@ -43,7 +43,8 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
     if ( read )
         insn_count = cs_disasm(cs_handle, buf, read, dtb, 0, &insn);
 
-    printf("%lu: 0x%lx \t %s\n", count, addr, insn_count ? insn[0].mnemonic : "-");
+    printf("%lu: \t 0x%lx \t %s \t ", count, addr, insn_count ? insn[0].mnemonic : "-");
+    vmi_print_hex(buf, read);
 
     if ( insn_count )
         cs_free(insn, insn_count);

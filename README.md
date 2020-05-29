@@ -1,4 +1,4 @@
-# VMI Kernel Fuzzer for Xen Project*
+# kfx: VMI Kernel Fuzzer for Xen Project*
 
 This project is intended to illustrate the harnessing required to fuzz a Linux kernel module using AFL through the Xen VMI API. The tool utilizes Xen VM forks to perform the fuzzing, thus
 allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. Coverage guidance for AFL is achieved using Capstone to dynamically disassemble the target code to locate
@@ -24,7 +24,7 @@ This project is licensed under the terms of the MIT license
 9. [Build the kernel's debug JSON profile](#section-9)
 10. [Compile & install Capstone](#section-10)
 10. [Compile & install LibVMI](#section-11)
-11. [Compile kernel-fuzzer](#section-12)
+11. [Compile kfx](#section-12)
 12. [Patch AFL](#section-13)
 13. [Add harness](#section-14)
 14. [Setup the VM for fuzzing](#section-15)
@@ -46,8 +46,8 @@ sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsd
 # 2. Grab the project and all submodules <a name="section-2"></a>
 ----------------------------------
 ```
-git clone https://github.com/intel/kernel-fuzzer-for-xen-project
-cd kernel-fuzzer-for-xen-project
+git clone https://github.com/intel/kfx-for-xen-project
+cd kfx-for-xen-project
 git submodule update --init
 ```
 
@@ -231,7 +231,7 @@ Test that base VMI works with:
 sudo vmi-process-list --name debian --json ~/debian.json
 ```
 
-# 12. Compile kernel-fuzzer <a name="section-12"></a>
+# 12. Compile kfx <a name="section-12"></a>
 ---------------------------------
 ```
 autoreconf -vif
@@ -281,10 +281,10 @@ You can insert the harness before and after the code segment you want to fuzz:
 
 # 15. Setup the VM for fuzzing <a name="section-15"></a>
 ---------------------------------
-Start `./kernel-fuzzer`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it.
+Start `./kfx`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it.
 
 ```
-sudo ./kernel-fuzzer --domain debian --json ~/debian.json --setup
+sudo ./kfx --domain debian --json ~/debian.json --setup
 ```
 
 You may optionally want to do this in a `screen` session, or you will need a separate shell to continue.
@@ -303,7 +303,7 @@ You should see a login screen when you press enter. Proceed to login.
 sudo insmod testmodule.ko
 ```
 
-The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kernel-fuzzer` should have now also exited with a message `Parent ready`.
+The VM's console should now appear frozen. This is normal and what's expected. You can exit the console with `CTRL+]`. The `kfx` should have now also exited with a message `Parent ready`.
 
 # 18. Start fuzzing using AFL <a name="section-18"></a>
 ---------------------------------
@@ -313,7 +313,7 @@ Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input 
 mkdir input
 mkdir output
 echo -n "not_beef" > input/beef
-sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kernel-fuzzer --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kfx --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 You can also specify the `--limit` option of how many control-flow instructions you want to encounter before timing out the fuzz iteration. This is an alternative to the AFL built-in time-out model.
@@ -327,7 +327,7 @@ After you are finished with fuzzing, the VM can be unpaused and should resume no
 You can run the kernel fuzzer directly to inject an input into a VM fork without AFL, adding the `--debug` option will provide you with a verbose output.
 
 ```
-sudo ./kernel-fuzzer --domain debian --json ~/debian.json --debug --input /path/to/input/file --input-limit <MAX SIZE TO WRITE> --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+sudo ./kfx --domain debian --json ~/debian.json --debug --input /path/to/input/file --input-limit <MAX SIZE TO WRITE> --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 # 20. FAQ

@@ -1,20 +1,20 @@
-bin_PROGRAMS = kernel-fuzzer forkvm rwmem stepper
+bin_PROGRAMS = kfx forkvm rwmem stepper
 
-kernel_fuzzer_SOURCES = src/main.c src/private.h \
-                        src/signal.c src/signal.h \
-                        src/vmi.c src/vmi.h \
-                        src/setup.c src/setup.h \
-                        src/afl.c src/afl.h \
-                        src/tracer.c src/tracer.h \
-                        src/forkvm.c src/forkvm.h
+kfx_SOURCES = src/main.c src/private.h \
+              src/signal.c src/signal.h \
+              src/vmi.c src/vmi.h \
+              src/setup.c src/setup.h \
+              src/afl.c src/afl.h \
+              src/tracer.c src/tracer.h \
+              src/forkvm.c src/forkvm.h
 
-kernel_fuzzer_LDADD   = $(LIBS) \
-                        $(VMI_LIBS) \
-                        $(CAPSTONE_LIBS)
-kernel_fuzzer_CFLAGS  = -Wall -Wextra -fstack-protector \
-                        $(CFLAGS) \
-                        $(VMI_CFLAGS) \
-                        $(CAPSTONE_CFLAGS)
+kfx_LDADD   = $(LIBS) \
+              $(VMI_LIBS) \
+              $(CAPSTONE_LIBS)
+kfx_CFLAGS  = -Wall -Wextra -fstack-protector \
+              $(CFLAGS) \
+              $(VMI_CFLAGS) \
+              $(CAPSTONE_CFLAGS)
 
 forkvm_SOURCES = src/forkvm_main.c src/forkvm.c src/forkvm.h
 

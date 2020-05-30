@@ -291,7 +291,7 @@ int main(int argc, char** argv)
     if ( !input_file )
     {
         printf("Failed to open input file %s\n", input_path);
-        return -1;
+        goto done;
     }
     fclose(input_file); // Closing for now, will reopen when needed
     input_file = NULL;

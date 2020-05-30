@@ -58,8 +58,6 @@ static const char *traptype[] = {
  * 5. goto step 1
  */
 
-#define TRACER_BUFFER_SIZE 256
-
 unsigned long tracer_counter;
 
 extern int interrupted;
@@ -116,13 +114,15 @@ static inline bool is_cf(unsigned int id)
     return false;
 }
 
+#define TRACER_CF_SEARCH_LIMIT 100u
+
 static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
 {
     cs_insn *insn;
     size_t count;
 
-    size_t read;
-    unsigned char buff[TRACER_BUFFER_SIZE] = { 0 };
+    size_t read, search = 0;
+    unsigned char buff[15];
     bool found = false;
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
@@ -130,21 +130,32 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
         .addr = start
     };
 
-    if ( VMI_FAILURE == vmi_read(vmi, &ctx, TRACER_BUFFER_SIZE, buff, &read) )
+    while ( !found && search < TRACER_CF_SEARCH_LIMIT )
     {
-        if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, dtb);
-        goto done;
-    }
+        memset(buff, 0, 15);
 
-    count = cs_disasm(cs_handle, buff, read, start, 0, &insn);
-    if ( debug ) printf("Disassembled %lu instructions\n", count);
-    if ( count ) {
+        if ( VMI_FAILURE == vmi_read(vmi, &ctx, 15, buff, &read) && !read )
+        {
+            if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, dtb);
+            goto done;
+        }
+
+        count = cs_disasm(cs_handle, buff, read, ctx.addr, 0, &insn);
+        if ( !count )
+        {
+            if ( debug ) printf("No instruction was found at 0x%lx with PT 0x%lx\n", ctx.addr, dtb);
+            goto done;
+        }
+
         size_t j;
         for ( j=0; j<count; j++) {
-             if ( debug ) printf("Next instruction @ 0x%lx: %s!\n", insn[j].address, insn[j].mnemonic);
 
-             if ( is_cf(insn[j].id) )
-             {
+            ctx.addr = insn[j].address + insn[j].size;
+
+            if ( debug ) printf("Next instruction @ 0x%lx: %s, size %i!\n", insn[j].address, insn[j].mnemonic, insn[j].size);
+
+            if ( is_cf(insn[j].id) )
+            {
                 next_cf_vaddr = insn[j].address;
                 if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, next_cf_vaddr, &next_cf_paddr) )
                 {
@@ -156,13 +167,14 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
 
                 if ( debug ) printf("Found next control flow instruction @ 0x%lx: %s!\n", next_cf_vaddr, insn[j].mnemonic);
                 break;
-             }
+            }
         }
         cs_free(insn, count);
     }
 
-    if ( !found )
-        if ( debug ) printf("Didn't find a control flow instruction in %u bytes starting from 0x%lx! Counter: %lu\n", TRACER_BUFFER_SIZE, start, tracer_counter);
+    if ( !found && debug )
+        printf("Didn't find a control flow instruction starting from 0x%lx with a search limit %u! Counter: %lu\n",
+               start, TRACER_CF_SEARCH_LIMIT, tracer_counter);
 
 done:
     return found;

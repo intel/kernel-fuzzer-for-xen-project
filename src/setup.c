@@ -98,6 +98,7 @@ bool make_parent_ready(void)
         return false;
     }
 
+    pm = vmi_get_page_mode(parent_vmi, 0);
     vcpus = vmi_get_num_vcpus(parent_vmi);
 
     if ( vcpus > 1 )

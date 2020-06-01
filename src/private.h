@@ -42,6 +42,7 @@ vmi_instance_t parent_vmi, vmi;
 os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
+page_mode_t pm;
 int interrupted;
 int vcpus;
 

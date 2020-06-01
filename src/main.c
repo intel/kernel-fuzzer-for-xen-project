@@ -273,7 +273,7 @@ int main(int argc, char** argv)
         goto done;
     }
 
-    if ( cs_open(CS_ARCH_X86, CS_MODE_64, &cs_handle) )
+    if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
     {
         fprintf(stderr, "Capstone init failed\n");
         goto done;

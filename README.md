@@ -1,4 +1,4 @@
-# kfx: VMI Kernel Fuzzer for Xen Project*
+# VMI Kernel Fuzzer for Xen Project*
 
 This project is intended to illustrate the harnessing required to fuzz a Linux kernel module using AFL through the Xen VMI API. The tool utilizes Xen VM forks to perform the fuzzing, thus
 allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. Coverage guidance for AFL is achieved using Capstone to dynamically disassemble the target code to locate
@@ -46,8 +46,8 @@ sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsd
 # 2. Grab the project and all submodules <a name="section-2"></a>
 ----------------------------------
 ```
-git clone https://github.com/intel/kfx-for-xen-project
-cd kfx-for-xen-project
+git clone https://github.com/intel/kernel-fuzzer-for-xen-project
+cd kernel-fuzzer-for-xen-project
 git submodule update --init
 ```
 
@@ -278,6 +278,8 @@ You can insert the harness before and after the code segment you want to fuzz:
     x = test((int)test1[0]);
     harness();
 ```
+
+You can also use software breakpoints (0xCC) as your harness which can be placed by standard debuggers like GDB. Use `--harness-type breakpoint` for this mode, which is particularly useful when you don't have access to the target's source-code to compile it with the CPUID-based harness.
 
 # 15. Setup the VM for fuzzing <a name="section-15"></a>
 ---------------------------------

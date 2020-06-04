@@ -23,15 +23,16 @@ This project is licensed under the terms of the MIT license
 8. [Configure the VM's console](#section-8)
 9. [Build the kernel's debug JSON profile](#section-9)
 10. [Compile & install Capstone](#section-10)
-10. [Compile & install LibVMI](#section-11)
-11. [Compile kfx](#section-12)
-12. [Patch AFL](#section-13)
-13. [Add harness](#section-14)
-14. [Setup the VM for fuzzing](#section-15)
-15. [Connect to the VM's console](#section-16)
-16. [Insert the target kernel module](#section-17)
-17. [Star fuzzing using AFL](#section-18)
-18. [Debugging](#section-19)
+11. [Compile & install LibVMI](#section-11)
+12. [Compile kfx](#section-12)
+13. [Patch AFL](#section-13)
+14. [Add harness](#section-14)
+15. [Setup the VM for fuzzing](#section-15)
+16. [Connect to the VM's console](#section-16)
+17. [Insert the target kernel module](#section-17)
+18. [Star fuzzing using AFL](#section-18)
+19. [Debugging](#section-19)
+20. [FAQ](#section-20)
 
 # Setup instruction for Ubuntu:
 
@@ -347,6 +348,10 @@ This tool currently only targets Linux. You can modify the harness to target Win
 > Can I just pipe /dev/random in as fuzzing input?
 
 Yes! You can use `--loopmode` to simply read input from whatever source you want and pipe it into the VM forks. In this mode coverage trace is disabled so you will see more iterations per second.
+
+> Any tricks to increase performance?
+
+To max out performance you can boot Xen with "dom0_max_vcpus=2 sched=null spec-ctrl=no-xen" which assigns only 2 vCPUs to dom0, disables the scheduler and speculative execution hardening features. You can also add "smt=0" to disable hyper-threading. Make sure your system has enough physical cores to run each vCPU as they get pinned.
 
 ---------------------------------
 *Other names and brands may be claimed as the property of others

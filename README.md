@@ -143,7 +143,7 @@ You might also want to save this as a script or add it to [/etc/rc.local](https:
 
 # 6. Create VM <a name="section-6"></a>
 ----------------------------------
-Paste the following as your domain config, for example into `debian.cfg`, tune it as you see fit. It's important the VM has only a single vCPU.
+Create the domain configuration file by pasting the following, for example into `debian.cfg`, then tune it as you see fit. It's important the VM has only a single vCPU.
 
 ```
 name="debian"
@@ -169,14 +169,14 @@ disk=['file:/path/to/vmdisk.img,xvda,w',
 Start the VM with:
 
 ```
-sudo xl create -V debian.cfg
+sudo xl create -A -V debian.cfg
 ```
 
 Follow the installation instructions in the VNC session. Configure the network manually to 10.0.0.2 with a default route via 10.0.0.1
 
 # 7. Grab the kernel's debug symbols & headers <a name="section-7"></a>
 ----------------------------------
-On Debian systems you can install everything right away
+Inside the VM, using Debian, you can install everything right away
 
 ```
 su -
@@ -189,11 +189,11 @@ From the VM copy `/usr/lib/debug/boot/vmlinux-$(uname -r)` and `/boot/System.map
 
 # 8. Configure the VM's console <a name="section-8"></a>
 ---------------------------------
-Edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `update-grub` afterwards and `reboot`.
+Inside the VM, edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `update-grub` afterwards and `reboot`.
 
 # 9. Build the kernel's debug JSON profile <a name="section-9"></a>
 ---------------------------------
-Change the paths to match your setup
+Back in dom0, we'll convert the dwarf debug information to json that we copied in Step 7. Change the paths to match your setup and make sure your dom0 has enough RAM as this may take up a lot of it:
 
 ```
 sudo snap install --classic go
@@ -213,7 +213,8 @@ mkdir build
 cd build
 cmake ..
 make
-make install
+sudo make install
+sudo ldconfig
 cd ../..
 ```
 
@@ -225,6 +226,7 @@ autoreconf -vif
 ./configure --disable-kvm --disable-bareflank --disable-file
 make -j4
 sudo make install
+sudo ldconfig
 cd ..
 ```
 
@@ -303,6 +305,8 @@ You should see a login screen when you press enter. Proceed to login.
 
 # 17. Insert the target kernel module <a name="section-17"></a>
 ---------------------------------
+There is a testmodule included with the repository, you can copy it into the VM and compile it simply by running `make`. Afterwards, load it via:
+
 ```
 sudo insmod testmodule.ko
 ```
@@ -348,6 +352,10 @@ This tool currently only targets Linux. You can modify the harness to target Win
 > Can I just pipe /dev/random in as fuzzing input?
 
 Yes! You can use `--loopmode` to simply read input from whatever source you want and pipe it into the VM forks. In this mode coverage trace is disabled so you will see more iterations per second.
+
+> How do I shutdown the VM after I'm done?
+
+You can issue `xl shutdown <domain name>` to initiate shutdown. If there are VM forks active, you need to issue `xl destroy <domain id>` for each fork before shutdown.
 
 > Any tricks to increase performance?
 

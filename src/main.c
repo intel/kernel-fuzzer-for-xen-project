@@ -239,7 +239,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || !json || (!address && !setup) || (!setup && (!input_path || !input_limit)) )
+    if ( (!domain && !domid) || (!address && !setup) || (!setup && (!input_path || !input_limit)) )
     {
         usage();
         return -1;

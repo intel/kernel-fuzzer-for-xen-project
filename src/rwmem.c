@@ -100,7 +100,7 @@ int main(int argc, char** argv)
     {
         i = fopen(filepath,"r");
 
-        if ( i && (fsize = fread(buffer, limit, 1, i)) && VMI_SUCCESS == vmi_write(vmi, &ctx, fsize, buffer, NULL) )
+        if ( i && (fsize = fread(buffer, 1, limit, i)) && VMI_SUCCESS == vmi_write(vmi, &ctx, fsize, buffer, NULL) )
             printf("Write operation success: %lu bytes to 0x%lx\n", fsize, address);
     }
 

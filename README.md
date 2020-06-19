@@ -65,7 +65,12 @@ Make sure the pci include folder exists at `/usr/include/pci`. In case it doesn'
 sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
 ```
 
-Now we can compile Xen
+Before installing Xen from source make sure you don't have any pre-existing Xen packages installed:
+```
+sudo apt remove xen-* libxen*
+```
+
+Now we can compile & install Xen
 ```
 cd xen
 echo XEN_CONFIG_EXPERT=y > .config

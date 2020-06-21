@@ -6,7 +6,8 @@ kfx_SOURCES = src/main.c src/private.h \
               src/setup.c src/setup.h \
               src/afl.c src/afl.h \
               src/tracer.c src/tracer.h \
-              src/forkvm.c src/forkvm.h
+              src/forkvm.c src/forkvm.h \
+              src/sink.h
 
 kfx_LDADD   = $(LIBS) \
               $(VMI_LIBS) \

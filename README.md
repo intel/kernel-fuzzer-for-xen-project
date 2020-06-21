@@ -88,7 +88,7 @@ echo "none /proc/xen xenfs defaults,nofail 0 0" >> /etc/fstab
 systemctl enable xen-qemu-dom0-disk-backend.service
 systemctl enable xen-init-dom0.service
 systemctl enable xenconsoled.service
-echo "GRUB_CMDLINE_XEN_DEFAULT=\"console=vga hap_1gb=false hap_2mb=false\""
+echo "GRUB_CMDLINE_XEN_DEFAULT=\"console=vga hap_1gb=false hap_2mb=false\"" > /etc/default/grub
 update-grub
 reboot
 ```

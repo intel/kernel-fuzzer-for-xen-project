@@ -13,6 +13,7 @@ kfx_LDADD   = $(LIBS) \
               $(VMI_LIBS) \
               $(CAPSTONE_LIBS)
 kfx_CFLAGS  = -Wall -Wextra -fstack-protector \
+              -Wno-override-init \
               $(CFLAGS) \
               $(VMI_CFLAGS) \
               $(CAPSTONE_CFLAGS)

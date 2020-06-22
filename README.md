@@ -88,12 +88,14 @@ echo "none /proc/xen xenfs defaults,nofail 0 0" >> /etc/fstab
 systemctl enable xen-qemu-dom0-disk-backend.service
 systemctl enable xen-init-dom0.service
 systemctl enable xenconsoled.service
-echo "GRUB_CMDLINE_XEN_DEFAULT=\"console=vga hap_1gb=false hap_2mb=false\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_XEN_DEFAULT=\"hap_1gb=false hap_2mb=false dom0_mem=4096M\"" >> /etc/default/grub
 update-grub
 reboot
 ```
 
 Make sure to pick the Xen entry in GRUB when booting. You can verify you booted into Xen correctly by running `xen-detect`.
+
+Note that we assign 4GB RAM to dom0 above which is a safe default but feel free to increase that if your system has a lot of RAM available.
 
 ## 3.b Booting from UEFI
 
@@ -137,11 +139,13 @@ dd if=/dev/zero of=vmdisk.img bs=1G count=20
 # 5. Setup networking <a name="section-5"></a>
 ----------------------------------
 ```
-sudo brctl addbr xenbr0
-sudo ip addr add 10.0.0.1/24 dev xenbr0
-sudo ip link set xenbr0 up
-sudo echo 1 > /proc/sys/net/ipv4/ip_forward
-sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+sudo su
+brctl addbr xenbr0
+ip addr add 10.0.0.1/24 dev xenbr0
+ip link set xenbr0 up
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+exit
 ```
 
 You might also want to save this as a script or add it to [/etc/rc.local](https://www.linuxbabe.com/linux-server/how-to-enable-etcrc-local-with-systemd)

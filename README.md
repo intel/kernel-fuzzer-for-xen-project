@@ -178,8 +178,16 @@ disk=['file:/path/to/vmdisk.img,xvda,w',
 Start the VM with:
 
 ```
-sudo xl create -A -V debian.cfg
+sudo xl create debian.cfg
 ```
+
+You can connect to the VNC session using your favorite VNC viewer or by simply running:
+
+```
+vncviewer localhost
+```
+
+In case it's a remote system replace localhost with the IP of the system; note however that the VNC connection is not encrypted so it may be better to setup an SSH tunnel to connect through.
 
 Follow the installation instructions in the VNC session. Configure the network manually to 10.0.0.2 with a default route via 10.0.0.1
 

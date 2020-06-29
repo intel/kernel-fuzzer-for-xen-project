@@ -210,10 +210,17 @@ Inside the VM, edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE
 
 # 9. Build the kernel's debug JSON profile <a name="section-9"></a>
 ---------------------------------
-Back in dom0, we'll convert the dwarf debug information to json that we copied in Step 7. Change the paths to match your setup and make sure your dom0 has enough RAM as this may take up a lot of it:
+Back in dom0, we'll convert the dwarf debug information to json that we copied in Step 7.  We'll need Go 1.13 or newer for this. You can install it using snap as follows:
 
 ```
 sudo snap install --classic go
+```
+
+If you distro's repository has go 1.13 or newer you can also install it from there (package name is golang-go).
+
+Now we can build dwarf2json and generate the JSON profile. Change the paths to match your setup and make sure your dom0 has enough RAM as this may take up a lot of it.
+
+```
 cd dwarf2json
 go build
 ./dwarf2json linux --elf /path/to/vmlinux --system-map /path/to/System.map > ~/debian.json
@@ -360,11 +367,11 @@ sudo ./kfx --domain debian --json ~/debian.json --debug --input /path/to/input/f
 
 > Can I run this on ring3 applications?
 
-You likely get better performance if you run AFL natively on a ring3 application but nothing prevents you from running it via this tool. You would need to adjust the sink points in `src/tracer.c` to catch the crash handlers that are called for ring3 apps. For example `do_trap_error` in Linux handles segfaults, you would probably want to catch that.
+You likely get better performance if you run AFL natively on a ring3 application but nothing prevents you from running it via this tool. You would need to adjust the sink points in `src/sink.h` to catch the crash handlers that are called for ring3 apps. For example `do_trap_error` in Linux handles segfaults, you would probably want to catch that.
 
 > Can I fuzz Windows?
 
-This tool currently only targets Linux. You can modify the harness to target Windows or any other operating system by adjusting the sink points in `src/tracer.c` that are used to catch a crash condition. You could also manually define the sink points' addresses in case the operating system is not supported by LibVMI. In case you want to fuzz closed-source portions of Windows where you can't inject the `cpuid`-based harness, you can use `--harness breakpoint` to switch to using breakpoints as your harness. This allows you to mark the code-region to fuzz with a standard debugger like WinDBG.
+This tool currently only targets Linux. You can modify the harness to target Windows or any other operating system by adjusting the sink points in `src/sink.h` that are used to catch a crash condition. You could also manually define the sink points' addresses in case the operating system is not supported by LibVMI. In case you want to fuzz closed-source portions of Windows where you can't inject the `cpuid`-based harness, you can use `--harness breakpoint` to switch to using breakpoints as your harness. This allows you to mark the code-region to fuzz with a standard debugger like WinDBG.
 
 > Can I just pipe /dev/random in as fuzzing input?
 

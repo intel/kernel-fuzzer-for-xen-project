@@ -5,18 +5,12 @@ static char test2[] = "nottbeef";
 
 static inline void harness(void)
 {
-    asm (
-        "push %rax\n\t"
-        "push %rbx\n\t"
-        "push %rcx\n\t"
-        "push %rdx\n\t"
-        "movq $0x13371337,%rax\n\t"
-        "cpuid\n\t"
-        "pop %rdx\n\t"
-        "pop %rcx\n\t"
-        "pop %rbx\n\t"
-        "pop %rax\n\t"
-    );
+    unsigned int tmp;
+
+    asm volatile ("cpuid"
+                  : "=a" (tmp)
+                  : "a" (0x13371337)
+                  : "bx", "cx", "dx");
 }
 
 static int path1(int x)

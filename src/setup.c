@@ -3,34 +3,30 @@
 extern int interrupted;
 extern bool parent_ready;
 
-static vmi_event_t cpuid_event, singlestep_event, cc_event;
+static vmi_event_t cpuid_event, cc_event;
 
 static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    event->x86_regs->rip += event->cpuid_event.insn_length;
+    addr_t rip = event->x86_regs->rip + event->cpuid_event.insn_length;
 
     if ( event->cpuid_event.leaf == 0x13371337 )
     {
         printf("Got start cpuid callback with leaf: 0x%x 0x%lx\n", event->cpuid_event.leaf, event->x86_regs->rip);
 
+        vmi_pause_vm(vmi);
         vmi_clear_event(vmi, event, NULL);
-        return VMI_EVENT_RESPONSE_SET_REGISTERS | VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+
+        vmi_set_vcpureg(vmi, rip, RIP, event->vcpu_id);
+
+        parent_ready = 1;
+        interrupted = 1;
+
+        return 0;
     }
 
+    event->x86_regs->rip = rip;
+
     return VMI_EVENT_RESPONSE_SET_REGISTERS;
-}
-
-static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
-{
-    vmi_pause_vm(vmi);
-    parent_ready = 1;
-    interrupted = 1;
-
-    printf("Parent VM is paused right after the harness CPUID @ 0x%lx\n", event->x86_regs->rip);
-
-    vmi_clear_event(vmi, event, NULL);
-
-    return 0;
 }
 
 static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -59,8 +55,6 @@ static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
 
 static void waitfor_start(vmi_instance_t vmi)
 {
-    SETUP_SINGLESTEP_EVENT(&singlestep_event, 1, singlestep_cb, 0);
-
     if ( harness_cpuid )
     {
         cpuid_event.version = VMI_EVENTS_VERSION;
@@ -68,8 +62,6 @@ static void waitfor_start(vmi_instance_t vmi)
         cpuid_event.callback = start_cpuid_cb;
 
         if ( VMI_FAILURE == vmi_register_event(vmi, &cpuid_event) )
-            return;
-        if ( VMI_FAILURE == vmi_register_event(vmi, &singlestep_event) )
             return;
 
         printf("Waiting for harness start (cpuid with leaf 0x13371337)\n");

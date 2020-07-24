@@ -170,6 +170,7 @@ vnclisten="0.0.0.0"
 vncpasswd='1234567'
 usb=1
 usbdevice=['tablet']
+stdvga=1
 # Make sure to update the paths below!
 disk=['file:/path/to/vmdisk.img,xvda,w',
       'file:/path/to/debian.iso,xvdc:cdrom,r']

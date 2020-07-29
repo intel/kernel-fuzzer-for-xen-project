@@ -138,17 +138,35 @@ dd if=/dev/zero of=vmdisk.img bs=1G count=20
 
 # 5. Setup networking <a name="section-5"></a>
 ----------------------------------
+
+Create a network bridge using NetPlan at /etc/netplan/02-xenbr0.yaml:
 ```
-sudo su
-brctl addbr xenbr0
-ip addr add 10.0.0.1/24 dev xenbr0
-ip link set xenbr0 up
-echo 1 > /proc/sys/net/ipv4/ip_forward
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-exit
+network:
+  version: 2
+  renderer: networkd
+  bridges:
+    xenbr0:
+      dhcp4: no
+      addresses: [ 10.0.0.1/24 ]
 ```
 
-You might also want to save this as a script or add it to [/etc/rc.local](https://www.linuxbabe.com/linux-server/how-to-enable-etcrc-local-with-systemd)
+Apply the NetPlan configuration:
+```
+sudo netplan generate
+sudo netplan apply
+```
+
+Enable IP forwarding:
+```
+sudo echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+sudo sysctl --system
+```
+
+Enable NAT and save the iptables rule, make sure to change eth0 to match your interface name facing the internet:
+```
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+sudo apt-get install iptables-persistent
+```
 
 # 6. Create VM <a name="section-6"></a>
 ----------------------------------
@@ -190,7 +208,7 @@ vncviewer localhost
 
 In case it's a remote system replace localhost with the IP of the system; note however that the VNC connection is not encrypted so it may be better to setup an SSH tunnel to connect through.
 
-Follow the installation instructions in the VNC session. Configure the network manually to 10.0.0.2 with a default route via 10.0.0.1
+Follow the installation instructions in the VNC session. Configure the network manually to 10.0.0.2/24 with a default route via 10.0.0.1
 
 # 7. Grab the kernel's debug symbols & headers <a name="section-7"></a>
 ----------------------------------

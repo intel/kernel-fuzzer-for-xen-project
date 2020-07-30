@@ -83,7 +83,7 @@ static bool fuzz(void)
 
     get_input();
 
-    if ( !nocov && !start_trace(vmi, start_rip) )
+    if ( !start_trace(vmi, start_rip) )
         return false;
     if ( !inject_input(vmi) )
     {
@@ -151,6 +151,7 @@ static void usage(void)
     printf("\t  --refork <create new fork after # of executions>\n");
     printf("\t  --keep (keep VM fork after kfx exits)\n");
     printf("\t  --nocov (disable coverage tracing)\n");
+    printf("\t  --detect-doublefetch <kernel virtual address on page to detect doublefetch>\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -181,9 +182,10 @@ int main(int argc, char** argv)
         {"loopmode", no_argument, NULL, 'O'},
         {"keep", no_argument, NULL, 'K'},
         {"nocov", no_argument, NULL, 'N'},
+        {"detect-doublefetch", required_argument, NULL, 'D'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:svhOK";
+    const char* opts = "d:i:j:f:a:l:F:H:S:svhOKND";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -246,6 +248,9 @@ int main(int argc, char** argv)
             break;
         case 'N':
             nocov = true;
+            break;
+        case 'D':
+            doublefetch = strtoull(optarg, NULL, 0);
             break;
         case 'h': /* fall-through */
         default:

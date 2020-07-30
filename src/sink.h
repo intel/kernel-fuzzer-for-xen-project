@@ -62,6 +62,4 @@ addr_t sink_paddr[__SINK_MAX] =
      */
 };
 
-uint8_t sink_backup[__SINK_MAX] = {0};
-
 #endif

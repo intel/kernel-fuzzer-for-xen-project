@@ -46,6 +46,7 @@ addr_t start_rip;
 page_mode_t pm;
 int interrupted;
 int vcpus;
+addr_t doublefetch;
 
 bool harness_cpuid;
 uint8_t start_byte;

@@ -73,8 +73,8 @@ sudo apt remove xen-* libxen*
 Now we can compile & install Xen
 ```
 cd xen
-echo XEN_CONFIG_EXPERT=y > .config
-echo CONFIG_MEM_SHARING=y > xen/.config
+echo CONFIG_EXPERT=y > xen/.config
+echo CONFIG_MEM_SHARING=y >> xen/.config
 ./configure --disable-pvshim --enable-githttp
 make -C xen olddefconfig
 make -j4 dist-xen

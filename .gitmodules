@@ -1,20 +1,20 @@
 [submodule "libvmi"]
 	path = libvmi
 	url = https://github.com/libvmi/libvmi
-    ignore = dirty
+	ignore = dirty
 [submodule "xen"]
 	path = xen
 	url = http://xenbits.xen.org/git-http/people/tklengyel/xen.git
-    ignore = dirty
+	ignore = dirty
 [submodule "dwarf2json"]
 	path = dwarf2json
 	url = https://github.com/tklengyel/dwarf2json
-    ignore = dirty
+	ignore = dirty
 [submodule "AFL"]
 	path = AFL
 	url = https://github.com/google/AFL
-    ignore = dirty
+	ignore = dirty
 [submodule "capstone"]
 	path = capstone
 	url = https://github.com/aquynh/capstone
-    ignore = dirty
+	ignore = dirty

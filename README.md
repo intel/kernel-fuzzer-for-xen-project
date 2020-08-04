@@ -103,12 +103,12 @@ If Xen doesn't boot from GRUB you can try to boot it from UEFI directly <a name=
 
 ```
 mkdir -p /boot/efi/EFI/xen
-cp /usr/lib/efi/xen.efi /boot/efi/EFI/xen
+cp /usr/lib64/efi/xen.efi /boot/efi/EFI/xen
 cp /boot/vmlinuz /boot/efi/EFI/xen
 cp /boot/initrd.img /boot/efi/EFI/xen
 ```
 
-Gather your kernel boot command line from /proc/cmdline & paste the following into /boot/efi/EFI/xen/xen.cfg:
+Gather your kernel boot command line's relevant bits from /proc/cmdline. Copy & paste the following into /boot/efi/EFI/xen/xen.cfg:
 
 ```
 [global]
@@ -127,7 +127,7 @@ efibootmgr -c -d /dev/sda -p 1 -w -L "Xen" -l "\EFI\xen\xen.efi"
 reboot
 ```
 
-You may want to use the `-C` option above if you are on a remote system so you can set only the next-boot to try Xen. This is helpful in case the system can't boot Xen and you don't have remote KVM to avoid losing access in case Xen can't boot for some reason. Use `efibootmgr --bootnext <BOOT NUMBER FOR XEN>` to try boot Xen only on the next reboot.
+You may want to use the `-C` option above instead of `-c` if you are on a remote system so you can set only the next-boot to try Xen. This is helpful in case the system can't boot Xen and you don't have remote KVM to avoid losing access in case Xen can't boot for some reason. Use `efibootmgr --bootnext <BOOT NUMBER FOR XEN>` to try boot Xen only on the next reboot.
 
 # 4. Create VM disk image <a name="section-4"></a>
 ----------------------------------

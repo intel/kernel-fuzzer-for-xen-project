@@ -102,6 +102,7 @@ Note that we assign 4GB RAM to dom0 above which is a safe default but feel free 
 If Xen doesn't boot from GRUB you can try to boot it from UEFI directly <a name="section-3b"></a>
 
 ```
+sudo su
 mkdir -p /boot/efi/EFI/xen
 cp /usr/lib64/efi/xen.efi /boot/efi/EFI/xen
 cp /boot/vmlinuz /boot/efi/EFI/xen

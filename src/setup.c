@@ -99,6 +99,10 @@ bool make_parent_ready(void)
         return false;
     }
 
+    addr_t kaslr;
+    if ( debug && VMI_OS_LINUX == os && VMI_SUCCESS == vmi_get_offset(parent_vmi, "linux_kaslr", &kaslr) )
+        printf("Linux KASLR offset: 0x%lx\n", kaslr);
+
     if ( !domain )
         domain = vmi_get_name(parent_vmi);
     if ( !domid )

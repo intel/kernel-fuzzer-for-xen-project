@@ -12,7 +12,7 @@ vmi_instance_t vmi;
 os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
-bool loopmode;
+bool loopmode, reset;
 int interrupted;
 unsigned long limit, count;
 xc_interface *xc;
@@ -24,6 +24,7 @@ static void usage(void)
     printf("\t --domid <domid>\n");
     printf("\t --limit <singlestep count>\n");
     printf("\t --loopmode\n");
+    printf("\t --reset\n");
 }
 
 void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
@@ -74,6 +75,7 @@ int main(int argc, char** argv)
         {"domid", required_argument, NULL, 'd'},
         {"limit", required_argument, NULL, 'L'},
         {"loopmode", no_argument, NULL, 'l'},
+        {"reset", no_argument, NULL, 'r'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:L:l";
@@ -91,6 +93,9 @@ int main(int argc, char** argv)
             break;
         case 'l':
             loopmode = true;
+            break;
+        case 'r':
+            reset = true;
             break;
         case 'h': /* fall-through */
         default:
@@ -114,19 +119,22 @@ int main(int argc, char** argv)
     if ( cs_open(CS_ARCH_X86, CS_MODE_64, &cs_handle) )
         goto done;
 
+    if ( reset && xc_memshr_fork_reset(xc, domid) )
+    {
+        printf("Failed to reset VM, is it a fork?\n");
+        goto done;
+    }
+
     setup_handlers();
 
     registers_t regs = {0};
-    vmi_get_vcpuregs(vmi, &regs, 0);
-
-    start_rip = regs.x86.rip;
-    target_pagetable = regs.x86.cr3;
-
     vmi_event_t singlestep_event;
     SETUP_SINGLESTEP_EVENT(&singlestep_event, 1, tracer_cb, 1);
 
     do {
-        print_instruction(vmi, target_pagetable, start_rip);
+        vmi_get_vcpuregs(vmi, &regs, 0);
+
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
 
@@ -136,9 +144,16 @@ int main(int argc, char** argv)
 
         vmi_pause_vm(vmi);
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 0);
-        vmi_pagecache_flush(vmi);
 
-        rc = xc_memshr_fork_reset(xc, domid);
+        if ( loopmode )
+        {
+            vmi_pagecache_flush(vmi);
+            if ( xc_memshr_fork_reset(xc, domid) )
+            {
+                printf("Failed to reset VM, is it a fork?\n");
+                break;
+            }
+        }
 
         printf("----------------------------------------\n");
         interrupted = 0;
@@ -149,7 +164,7 @@ int main(int argc, char** argv)
          * after a reset. There shouldn't be any divergence since after a reset the fork
          * should resume from the same state as before.
          */
-    } while ( loopmode && !rc );
+    } while ( loopmode );
 
 done:
     if ( xc )

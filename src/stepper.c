@@ -60,6 +60,7 @@ event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     if ( count >= limit )
     {
         interrupted = 1;
+        vmi_pause_vm(vmi);
         return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
     }
 
@@ -142,7 +143,9 @@ int main(int argc, char** argv)
         while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
         {}
 
-        vmi_pause_vm(vmi);
+        if ( count < limit )
+            vmi_pause_vm(vmi);
+
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 0);
 
         if ( loopmode )

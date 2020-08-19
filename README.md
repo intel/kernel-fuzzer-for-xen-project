@@ -5,6 +5,8 @@ allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. C
 the next control-flow instruction. The instruction is breakpointed and when the breakpoint triggers, MTF is activated to advance the VM ahead, then the processes is repeated again. The
 tool allows fine-tuning how many control-flow instructions to allow the fuzzing to encounter before terminating. This provides an alternative to timing out the fuzzing process.
 
+Hardware requirements: Intel CPU with VT-x and EPT enabled.
+
 This project is licensed under the terms of the MIT license
 
 # Demo
@@ -398,6 +400,10 @@ You can issue `xl shutdown <domain name>` to initiate shutdown. If there are VM 
 > Any tricks to increase performance?
 
 To max out performance you can boot Xen with "dom0_max_vcpus=2 sched=null spec-ctrl=no-xen" which assigns only 2 vCPUs to dom0, disables the scheduler and speculative execution hardening features. You can also add "smt=0" to disable hyper-threading. Make sure your system has enough physical cores to run each vCPU as they get pinned.
+
+> Is it possible to run the tool nested?
+
+Yes, it has been tested running on top of VMware Workstation. In the VMware VM's CPU settings make sure to enable the "Virtualize Intel VT-x/EPT" option. Performance will be lower as compared to running it directly on the hardware.
 
 ---------------------------------
 *Other names and brands may be claimed as the property of others

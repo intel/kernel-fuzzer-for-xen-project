@@ -44,7 +44,7 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
     if ( read )
         insn_count = cs_disasm(cs_handle, buf, read, dtb, 0, &insn);
 
-    printf("%lu: \t 0x%lx \t %s \t ", count, addr, insn_count ? insn[0].mnemonic : "-");
+    printf("%5lu: 0x%16lx %10s ", count, addr, insn_count ? insn[0].mnemonic : "-");
     vmi_print_hex(buf, read);
 
     if ( insn_count )

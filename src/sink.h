@@ -9,7 +9,10 @@ enum sink_enum {
     OOPS_BEGIN,
     PANIC,
     PAGE_FAULT,
+    // Add new sink declarations here
+
     __SINK_MAX
+    // Don't place new sink declaration here
 };
 
 /* Now define what symbol each enum entry corresponds to in the debug json */
@@ -36,7 +39,7 @@ const char *sinks[] = {
      * is a legitimate page-fault that would page memory back in, it won't be able
      * to do that since there is no disk.
      */
-    [PAGE_FAULT] = "page_fault",
+    [PAGE_FAULT] = "page_fault", // NOTE: after kernel 5.8 it is named asm_exc_page_fault
 };
 
 addr_t sink_vaddr[__SINK_MAX] =

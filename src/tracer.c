@@ -243,16 +243,25 @@ bool setup_sinks(vmi_instance_t vmi)
     {
         if ( !sink_vaddr[c] && VMI_FAILURE == vmi_translate_ksym2v(vmi, sinks[c], &sink_vaddr[c]) )
         {
-            if ( debug ) printf("Failed to find %s\n", sinks[c]);
+            if ( debug ) printf("Failed to find address for sink %s in the JSON\n", sinks[c]);
             return false;
         }
 
         if ( !sink_paddr[c] && VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
+        {
+            if ( debug ) printf("Failed to translate %s V2P 0x%lx\n", sinks[c], sink_vaddr[c]);
             return false;
+        }
         if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
+        {
+            if ( debug ) printf("Failed to read %s PA 0x%lx\n", sinks[c], sink_paddr[c]);
             return false;
+        }
         if ( VMI_FAILURE == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
+        {
+            if ( debug ) printf("Failed to write %s PA 0x%lx\n", sinks[c], sink_paddr[c]);
             return false;
+        }
 
         if ( debug )
             printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx, backup 0x%x\n",

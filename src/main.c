@@ -146,6 +146,7 @@ static void usage(void)
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
     printf("\t  --refork <create new fork after # of executions>\n");
+    printf("\t  --keep (keep VM fork after kfx exits)\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -174,11 +175,13 @@ int main(int argc, char** argv)
         {"start-byte", required_argument, NULL, 'S'},
         {"refork", required_argument, NULL, 'r'},
         {"loopmode", no_argument, NULL, 'O'},
+        {"keep", no_argument, NULL, 'K'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:svhO";
+    const char* opts = "d:i:j:f:a:l:F:H:S:svhOK";
     limit = ~0;
     unsigned long refork = 0;
+    bool keep = false;
 
     harness_cpuid = true;
     input_path = NULL;
@@ -232,6 +235,9 @@ int main(int argc, char** argv)
         case 'O':
             loopmode = true;
             break;
+        case 'K':
+            keep = true;
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -266,6 +272,9 @@ int main(int argc, char** argv)
 
     if ( setup )
         return parent_ready ? 0 : -1;
+
+    if ( !parent_ready )
+        goto done;
 
     if ( !(xc = xc_interface_open(0, 0, 0)) )
     {
@@ -346,7 +355,7 @@ done:
         clear_sinks(parent_vmi);
         vmi_destroy(parent_vmi);
     }
-    if ( forkdomid )
+    if ( forkdomid && !keep )
         xc_domain_destroy(xc, forkdomid);
     xc_interface_close(xc);
     cs_close(&cs_handle);

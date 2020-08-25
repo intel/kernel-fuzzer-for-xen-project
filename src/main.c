@@ -79,7 +79,7 @@ static bool fuzz_fork(void)
 
     get_input();
 
-    if ( !loopmode && !start_trace(vmi, start_rip) )
+    if ( !nocov && !start_trace(vmi, start_rip) )
         return false;
     if ( !inject_input(vmi) )
     {
@@ -147,6 +147,7 @@ static void usage(void)
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
     printf("\t  --refork <create new fork after # of executions>\n");
     printf("\t  --keep (keep VM fork after kfx exits)\n");
+    printf("\t  --nocov (disable coverage tracing)\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -176,6 +177,7 @@ int main(int argc, char** argv)
         {"refork", required_argument, NULL, 'r'},
         {"loopmode", no_argument, NULL, 'O'},
         {"keep", no_argument, NULL, 'K'},
+        {"nocov", no_argument, NULL, 'N'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:i:j:f:a:l:F:H:S:svhOK";
@@ -234,9 +236,13 @@ int main(int argc, char** argv)
             break;
         case 'O':
             loopmode = true;
+            nocov = true;
             break;
         case 'K':
             keep = true;
+            break;
+        case 'N':
+            nocov = true;
             break;
         case 'h': /* fall-through */
         default:

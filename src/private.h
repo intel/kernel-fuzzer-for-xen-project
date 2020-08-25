@@ -34,6 +34,7 @@ bool crash;
 bool setup;
 bool debug;
 bool loopmode;
+bool nocov;
 addr_t address;
 unsigned long limit;
 

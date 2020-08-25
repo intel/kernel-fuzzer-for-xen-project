@@ -12,7 +12,7 @@ vmi_instance_t vmi;
 os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
-bool loopmode, reset;
+bool loopmode, reset, stop_on_cpuid;
 int interrupted;
 unsigned long limit, count;
 xc_interface *xc;
@@ -24,10 +24,11 @@ static void usage(void)
     printf("\t --domid <domid>\n");
     printf("\t --limit <singlestep count>\n");
     printf("\t --loopmode\n");
+    printf("\t --stop-on-cpuid\n");
     printf("\t --reset\n");
 }
 
-void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
+void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr, bool *cpuid)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
@@ -42,7 +43,12 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
     vmi_read(vmi, &ctx, 15, buf, &read);
 
     if ( read )
+    {
         insn_count = cs_disasm(cs_handle, buf, read, dtb, 0, &insn);
+
+        if ( cpuid && insn[0].id == X86_INS_CPUID )
+            *cpuid = true;
+    }
 
     printf("%5lu: 0x%16lx %10s ", count, addr, insn_count ? insn[0].mnemonic : "-");
     vmi_print_hex(buf, read);
@@ -53,11 +59,13 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr)
 
 event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
+    bool cpuid = false;
+
     count++;
 
-    print_instruction(vmi, event->x86_regs->cr3, event->x86_regs->rip);
+    print_instruction(vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
 
-    if ( count >= limit )
+    if ( count >= limit || (stop_on_cpuid && cpuid) )
     {
         interrupted = 1;
         vmi_pause_vm(vmi);
@@ -77,6 +85,7 @@ int main(int argc, char** argv)
         {"limit", required_argument, NULL, 'L'},
         {"loopmode", no_argument, NULL, 'l'},
         {"reset", no_argument, NULL, 'r'},
+        {"stop-on-cpuid", no_argument, NULL, 's'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:L:l";
@@ -97,6 +106,9 @@ int main(int argc, char** argv)
             break;
         case 'r':
             reset = true;
+            break;
+        case 's':
+            stop_on_cpuid = true;
             break;
         case 'h': /* fall-through */
         default:
@@ -135,7 +147,7 @@ int main(int argc, char** argv)
     do {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
-        print_instruction(vmi, regs.x86.cr3, regs.x86.rip);
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
 

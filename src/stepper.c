@@ -155,9 +155,6 @@ int main(int argc, char** argv)
         while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
         {}
 
-        if ( count < limit )
-            vmi_pause_vm(vmi);
-
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 0);
 
         if ( loopmode )

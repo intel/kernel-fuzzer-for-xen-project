@@ -12,6 +12,7 @@ vmi_instance_t vmi;
 os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
+addr_t stop_rip;
 bool loopmode, reset, stop_on_cpuid;
 int interrupted;
 unsigned long limit, count;
@@ -25,6 +26,7 @@ static void usage(void)
     printf("\t --limit <singlestep count>\n");
     printf("\t --loopmode\n");
     printf("\t --stop-on-cpuid\n");
+    printf("\t --stop-on-address <addr>\n");
     printf("\t --reset\n");
 }
 
@@ -65,7 +67,7 @@ event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     print_instruction(vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
 
-    if ( count >= limit || (stop_on_cpuid && cpuid) )
+    if ( count >= limit || (stop_on_cpuid && cpuid) || event->x86_regs->rip == stop_rip )
     {
         interrupted = 1;
         vmi_pause_vm(vmi);
@@ -86,6 +88,7 @@ int main(int argc, char** argv)
         {"loopmode", no_argument, NULL, 'l'},
         {"reset", no_argument, NULL, 'r'},
         {"stop-on-cpuid", no_argument, NULL, 's'},
+        {"stop-on-address", required_argument, NULL, 'S'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:L:l";
@@ -109,6 +112,9 @@ int main(int argc, char** argv)
             break;
         case 's':
             stop_on_cpuid = true;
+            break;
+        case 'S':
+            stop_rip = strtoull(optarg, NULL, 0);
             break;
         case 'h': /* fall-through */
         default:

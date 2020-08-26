@@ -69,6 +69,9 @@ static bool fuzz_fork(void)
     if ( !forkdomid )
         return false;
 
+    if ( xc_memshr_fork_reset(xc, forkdomid) )
+        return false;
+
     crash = 0;
 
     if ( afl )
@@ -97,7 +100,6 @@ static bool fuzz_fork(void)
     vmi_rvacache_flush(vmi);
     vmi_symcache_flush(vmi);
 
-    int rc = xc_memshr_fork_reset(xc, forkdomid);
     bool ret = false;
 
     if ( afl )
@@ -121,7 +123,7 @@ static bool fuzz_fork(void)
     free(input);
     input = NULL;
 
-    return ret && !rc;
+    return ret;
 }
 
 static void usage(void)

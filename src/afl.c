@@ -48,6 +48,9 @@ void afl_setup(void) {
     id_str = getenv(SHM_ENV_VAR);
     char *inst_r = getenv("AFL_INST_RATIO");
 
+    if ( !id_str )
+        return;
+
     if (inst_r) {
         unsigned int r = atoi(inst_r);
 

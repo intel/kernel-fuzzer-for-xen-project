@@ -66,6 +66,8 @@ static inline bool is_cf(unsigned int id)
         case X86_INS_RET:
         case X86_INS_RETF:
         case X86_INS_RETFQ:
+        case X86_INS_SYSCALL:
+        case X86_INS_SYSRET:
             return true;
         default:
             break;

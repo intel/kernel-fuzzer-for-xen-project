@@ -27,7 +27,7 @@ char *input_path;
 size_t input_size;
 size_t input_limit;
 unsigned char *input;
-uint32_t domid, forkdomid;
+uint32_t domid, sinkdomid, fuzzdomid;
 bool afl;
 bool parent_ready;
 bool crash;

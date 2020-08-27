@@ -46,30 +46,30 @@ static bool inject_input(vmi_instance_t vmi)
     return VMI_SUCCESS == vmi_write(vmi, &ctx, input_size, input, NULL);
 }
 
-static bool make_fork_ready()
+static bool make_fuzz_ready()
 {
-    if ( !forkdomid )
+    if ( !fuzzdomid )
         return false;
 
-    if ( !setup_vmi(&vmi, NULL, forkdomid, NULL, true, false) )
+    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, false) )
     {
-        fprintf(stderr, "Unable to start VMI on domain\n");
+        fprintf(stderr, "Unable to start VMI on fuzz domain %u\n", fuzzdomid);
         return false;
     }
 
     setup_trace(vmi);
 
-    if ( debug ) printf("Fork ready\n");
+    if ( debug ) printf("VM Fork is ready for fuzzing\n");
 
     return true;
 }
 
-static bool fuzz_fork(void)
+static bool fuzz(void)
 {
-    if ( !forkdomid )
+    if ( !fuzzdomid )
         return false;
 
-    if ( xc_memshr_fork_reset(xc, forkdomid) )
+    if ( xc_memshr_fork_reset(xc, fuzzdomid) )
         return false;
 
     crash = 0;
@@ -296,9 +296,25 @@ int main(int argc, char** argv)
         goto done;
     }
 
-    if ( !fork_vm() )
+    /*
+     * To reduce the churn of placing the sink breakpoints into the VM fork's memory
+     * for each fuzzing iteration (which requires full-page copies for each breakpoint)
+     * we create a fork that will only be used to house the breakpointed sinks,
+     * ie. sinkdomid. We don't want to place the breakpoints in the parent VM
+     * since that would prohibit other kfx instances from running on the domain
+     * with potentially other sinkpoints.
+     *
+     * Fuzzing is performed from a further fork made from sinkdomid, in fuzzdomid.
+     */
+    if ( !fork_vm(domid, &sinkdomid) )
     {
-        fprintf(stderr, "Domain fork failed\n");
+        fprintf(stderr, "Domain fork failed, sink domain not up\n");
+        goto done;
+    }
+
+    if ( !fork_vm(sinkdomid, &fuzzdomid) )
+    {
+        fprintf(stderr, "Domain fork failed, fuzz domain not up\n");
         goto done;
     }
 
@@ -307,17 +323,27 @@ int main(int argc, char** argv)
     input_file = fopen(input_path,"r"); // Sanity check
     if ( !input_file )
     {
-        printf("Failed to open input file %s\n", input_path);
+        fprintf(stderr, "Failed to open input file %s\n", input_path);
         goto done;
     }
     fclose(input_file); // Closing for now, will reopen when needed
     input_file = NULL;
 
-    if ( !afl ) printf("Fork VM created: %i\n", forkdomid);
+    if ( !afl ) printf("Fork VMs created: %u -> %u -> %u\n", domid, sinkdomid, fuzzdomid);
 
-    make_fork_ready();
+    if ( !make_sink_ready() )
+    {
+        fprintf(stderr, "Seting up sinks on VM fork domid %u failed\n", sinkdomid);
+        goto done;
+    }
 
-    if ( debug ) printf("Starting fuzzer\n");
+    if ( !make_fuzz_ready() )
+    {
+        fprintf(stderr, "Seting up fuzzing on VM fork domid %u failed\n", fuzzdomid);
+        goto done;
+    }
+
+    if ( debug ) printf("Starting fuzzer on %u\n", fuzzdomid);
 
     if ( loopmode ) printf("Running in loopmode\n");
     else if ( afl )  printf("Running in AFL mode\n");
@@ -325,7 +351,7 @@ int main(int argc, char** argv)
 
     unsigned long iter = 0, t = time(0), cycle = 0;
 
-    while ( fuzz_fork() )
+    while ( fuzz() )
     {
         iter++;
 
@@ -344,13 +370,13 @@ int main(int argc, char** argv)
         {
             close_trace(vmi);
             vmi_destroy(vmi);
-            xc_domain_destroy(xc, forkdomid);
+            xc_domain_destroy(xc, fuzzdomid);
 
             iter = 0;
-            forkdomid = 0;
+            fuzzdomid = 0;
 
-            if ( fork_vm() )
-                make_fork_ready();
+            if ( fork_vm(sinkdomid, &fuzzdomid) )
+                make_fuzz_ready();
         }
     }
 
@@ -358,13 +384,11 @@ int main(int argc, char** argv)
     vmi_destroy(vmi);
 
 done:
-    if ( parent_vmi )
-    {
-        clear_sinks(parent_vmi);
-        vmi_destroy(parent_vmi);
-    }
-    if ( forkdomid && !keep )
-        xc_domain_destroy(xc, forkdomid);
+    if ( fuzzdomid && !keep )
+        xc_domain_destroy(xc, fuzzdomid);
+    if ( sinkdomid && !keep )
+        xc_domain_destroy(xc, sinkdomid);
+
     xc_interface_close(xc);
     cs_close(&cs_handle);
     if ( input_file )

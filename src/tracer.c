@@ -236,46 +236,50 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     return 0;
 }
 
-bool setup_sinks(vmi_instance_t vmi)
+bool make_sink_ready(void)
 {
+    vmi_instance_t sink_vmi = NULL;
+    bool ret = false;
+
+    if ( !setup_vmi(&sink_vmi, NULL, sinkdomid, json, false, true) )
+        return ret;
+
     int c;
     for(c=0; c < __SINK_MAX; c++)
     {
-        if ( !sink_vaddr[c] && VMI_FAILURE == vmi_translate_ksym2v(vmi, sinks[c], &sink_vaddr[c]) )
+        if ( !sink_vaddr[c] && VMI_FAILURE == vmi_translate_ksym2v(sink_vmi, sinks[c], &sink_vaddr[c]) )
         {
             if ( debug ) printf("Failed to find address for sink %s in the JSON\n", sinks[c]);
-            return false;
+            goto done;
         }
 
-        if ( !sink_paddr[c] && VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
+        if ( !sink_paddr[c] && VMI_FAILURE == vmi_pagetable_lookup(sink_vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
         {
             if ( debug ) printf("Failed to translate %s V2P 0x%lx\n", sinks[c], sink_vaddr[c]);
-            return false;
+            goto done;
         }
-        if ( VMI_FAILURE == vmi_read_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
+        if ( VMI_FAILURE == vmi_read_pa(sink_vmi, sink_paddr[c], 1, &sink_backup[c], NULL) )
         {
             if ( debug ) printf("Failed to read %s PA 0x%lx\n", sinks[c], sink_paddr[c]);
-            return false;
+            goto done;
         }
-        if ( VMI_FAILURE == vmi_write_pa(vmi, sink_paddr[c], 1, &cc, NULL) )
+        if ( VMI_FAILURE == vmi_write_pa(sink_vmi, sink_paddr[c], 1, &cc, NULL) )
         {
             if ( debug ) printf("Failed to write %s PA 0x%lx\n", sinks[c], sink_paddr[c]);
-            return false;
+            goto done;
         }
 
         if ( debug )
-            printf("[TRACER] Setting breakpoint on sink %s 0x%lx -> 0x%lx, backup 0x%x\n",
+            printf("Setting breakpoint on sink %s 0x%lx -> 0x%lx, backup 0x%x\n",
                    sinks[c], sink_vaddr[c], sink_paddr[c], sink_backup[c]);
     }
 
-    return true;
-}
+    if ( debug ) printf("Sinks are ready\n");
+    ret = true;
 
-void clear_sinks(vmi_instance_t vmi)
-{
-    int c;
-    for(c=0; c < __SINK_MAX; c++)
-        vmi_write_pa(vmi, sink_paddr[c], 1, &sink_backup[c], NULL);
+done:
+    vmi_destroy(sink_vmi);
+    return ret;
 }
 
 bool setup_trace(vmi_instance_t vmi)

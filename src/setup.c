@@ -110,13 +110,10 @@ bool make_parent_ready(void)
     if ( setup )
         waitfor_start(parent_vmi);
     else
-        parent_ready = setup_sinks(parent_vmi);
+        parent_ready = true;
 
-    if ( !parent_ready || setup )
-    {
-        vmi_destroy(parent_vmi);
-        parent_vmi = NULL;
-    }
+    vmi_destroy(parent_vmi);
+    parent_vmi = NULL;
 
     printf("Parent %s ready\n", parent_ready ? "is" : "is not");
 

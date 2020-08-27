@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     {
         vcpus = ++info.max_vcpu_id;
 
-        if ( fork_vm() )
+        if ( fork_vm(domid, &forkdomid) )
             printf("Fork VM id: %u\n", forkdomid);
         else
             printf("Forking VM %u failed\n", domid);

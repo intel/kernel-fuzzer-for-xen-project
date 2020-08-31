@@ -368,7 +368,7 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
         if ( debug ) printf("EPT access permissions removed from GFN 0x%lx\n", doublefetch);
     }
 
-    if ( !nocov )
+    if ( !nocov && !ptcov )
     {
         next_cf_vaddr = 0;
         next_cf_paddr = 0;

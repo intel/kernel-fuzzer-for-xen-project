@@ -18,3 +18,7 @@
 	path = capstone
 	url = https://github.com/aquynh/capstone
 	ignore = dirty
+[submodule "libxdc"]
+	path = libxdc
+	url = https://github.com/tklengyel/libxdc
+	ignore = dirty

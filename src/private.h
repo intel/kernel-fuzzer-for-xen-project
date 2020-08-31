@@ -23,6 +23,7 @@
 #include "setup.h"
 #include "tracer.h"
 #include "forkvm.h"
+#include "ptcov.h"
 
 char *domain;
 char *json;
@@ -39,6 +40,7 @@ bool setup;
 bool debug;
 bool loopmode;
 bool nocov;
+bool ptcov;
 addr_t address;
 unsigned long limit;
 

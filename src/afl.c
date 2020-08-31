@@ -6,22 +6,11 @@
 
 extern unsigned char* input;
 
+/* Environment variable used to pass SHM ID to the called program. */
+#define SHM_ENV_VAR         "__AFL_SHM_ID"
 #define FORKSRV_FD          198
 
-/* Map size for the traced binary (2^MAP_SIZE_POW2). Must be greater than
-   2; you probably want to keep it under 18 or so for performance reasons
-   (adjusting AFL_INST_RATIO when compiling is probably a better way to solve
-   problems with complex programs). You need to recompile the target binary
-   after changing this - otherwise, SEGVs may ensue. */
-
-#define MAP_SIZE_POW2       16
-#define MAP_SIZE            (1ull << MAP_SIZE_POW2)
-
-/* Environment variable used to pass SHM ID to the called program. */
-
-#define SHM_ENV_VAR         "__AFL_SHM_ID"
-
-static unsigned char *afl_area_ptr;
+unsigned char *afl_area_ptr;
 static unsigned int afl_inst_rms = MAP_SIZE;
 static char *id_str;
 unsigned long prev_loc;

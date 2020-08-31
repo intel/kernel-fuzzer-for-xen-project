@@ -61,6 +61,12 @@ static bool make_fuzz_ready()
         return false;
     }
 
+    if ( ptcov && !setup_pt() )
+    {
+        fprintf(stderr, "Failed to enable Processor Tracing\n");
+        return false;
+    }
+
     setup_trace(vmi);
 
     if ( debug ) printf("VM Fork is ready for fuzzing\n");
@@ -81,7 +87,8 @@ static bool fuzz(void)
     if ( afl )
     {
         afl_rewind();
-        afl_instrument_location(start_rip);
+        if ( !ptcov )
+            afl_instrument_location(start_rip);
         afl_wait();
     }
 
@@ -98,6 +105,9 @@ static bool fuzz(void)
     if ( debug ) printf("Starting fuzz loop\n");
     loop(vmi);
     if ( debug ) printf("Stopping fuzz loop.\n");
+
+    if ( ptcov )
+        decode_pt();
 
     vmi_pagecache_flush(vmi);
     vmi_v2pcache_flush(vmi, target_pagetable);
@@ -155,6 +165,7 @@ static void usage(void)
     printf("\t  --refork <create new fork after # of executions>\n");
     printf("\t  --keep (keep VM fork after kfx exits)\n");
     printf("\t  --nocov (disable coverage tracing)\n");
+    printf("\t  --ptcov (use IPT coverage tracing)\n");
     printf("\t  --detect-doublefetch <kernel virtual address on page to detect doublefetch>\n");
 
     printf("\n\n");
@@ -186,10 +197,11 @@ int main(int argc, char** argv)
         {"loopmode", no_argument, NULL, 'O'},
         {"keep", no_argument, NULL, 'K'},
         {"nocov", no_argument, NULL, 'N'},
+        {"ptcov", no_argument, NULL, 'P'},
         {"detect-doublefetch", required_argument, NULL, 'D'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:svhOKND";
+    const char* opts = "d:i:j:f:a:l:F:H:S:svhOKNPD";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -252,6 +264,9 @@ int main(int argc, char** argv)
             break;
         case 'N':
             nocov = true;
+            break;
+        case 'P':
+            ptcov = true;
             break;
         case 'D':
             doublefetch = strtoull(optarg, NULL, 0);
@@ -397,6 +412,8 @@ int main(int argc, char** argv)
     vmi_destroy(vmi);
 
 done:
+    if ( ptcov )
+        close_pt();
     if ( fuzzdomid && !keep )
         xc_domain_destroy(xc, fuzzdomid);
     if ( sinkdomid && !keep )

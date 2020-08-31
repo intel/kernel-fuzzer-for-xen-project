@@ -44,7 +44,8 @@ PRs that are fixing bugs of any kind are welcome but this repository is intended
 17. [Insert the target kernel module](#section-17)
 18. [Star fuzzing using AFL](#section-18)
 19. [Debugging](#section-19)
-20. [FAQ](#section-20)
+20. [Intel Processor Trace](#section-20)
+21. [FAQ](#section-21)
 
 # Setup instruction for Ubuntu:
 
@@ -202,6 +203,8 @@ vncpasswd='1234567'
 usb=1
 usbdevice=['tablet']
 vga="stdvga"
+# Adjust PT buffer if it wraps for target code, 4GB max
+processor_trace_buf_kb=65536
 # Make sure to update the paths below!
 disk=['file:/path/to/vmdisk.img,xvda,w',
       'file:/path/to/debian.iso,xvdc:cdrom,r']
@@ -388,7 +391,19 @@ You can run the kernel fuzzer directly to inject an input into a VM fork without
 sudo ./kfx --domain debian --json ~/debian.json --debug --input /path/to/input/file --input-limit <MAX SIZE TO WRITE> --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
-# 20. FAQ
+# 20. Intel Processor Trace <a name="section-20"></a>
+---------------------------------
+Using Intel Processor Trace to collect the coverage trace information can significantly boost your fuzzing speed. For this mode to activate you have to add the following line to your VM's config:
+```
+processor_trace_buf_kb=65536
+```
+
+When the VM is booted with this option set you can activate Intel PT decoding using the kfx option `--ptcov`.
+
+Using this coverage tracing mode is more restrictive then the default. You can only fuzz code when the address space doesn't change (ie. no user-to-kernel switch, no process-switch). You also need Xen to run in bare-metal mode, it's not supported in a nested environment.
+
+
+# 21. FAQ <a name="section-21"></a>
 ---------------------------------
 
 > Can I run this on ring3 applications?

@@ -76,7 +76,7 @@ static bool fuzz(void)
 
     if ( afl )
     {
-        afl_rewind(start_rip);
+        afl_rewind();
         afl_wait();
     }
 

@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2020 Intel Corporation
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef FORKSERVER_H
 #define FORKSERVER_H
 

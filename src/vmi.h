@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2020 Intel Corporation
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef VMI_H
 #define VMI_H
 

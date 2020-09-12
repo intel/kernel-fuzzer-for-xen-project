@@ -26,7 +26,7 @@ static int my_init_module(void)
     int x;
     void *mem = kmalloc(4096, __GFP_DMA);
 
-    printk(KERN_ALERT "Kernel Fuzzer Test Module str %px mem %px\n", str, mem);
+    printk(KERN_ALERT "Kernel Fuzzer Test Module str 0x%px mem 0x%px\n", str, mem);
 
     harness();
 

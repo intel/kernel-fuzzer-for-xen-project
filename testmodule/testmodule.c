@@ -59,7 +59,7 @@ static int my_init_module(void)
 {
     int *x = NULL;
 
-    printk(KERN_ALERT "Kernel Fuzzer Test Module Test1 %px %s Test2 %px %s\n", test1, test1, test2, test2);
+    printk(KERN_ALERT "Kernel Fuzzer Test Module Test1 0x%px %s Test2 0x%px %s\n", test1, test1, test2, test2);
 
     harness();
 

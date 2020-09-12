@@ -96,7 +96,7 @@ int main(int argc, char** argv)
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:L:l";
-    uint32_t domid;
+    uint32_t domid = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {

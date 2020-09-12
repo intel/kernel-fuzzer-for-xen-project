@@ -278,8 +278,8 @@ int main(int argc, char** argv)
     if ( logfile )
     {
         out = open(logfile, O_RDWR|O_CREAT|O_APPEND, 0600);
-        if (-1 == dup2(out, fileno(stdout))) return -1;
-        if (-1 == dup2(out, fileno(stderr))) return -1;
+        if (-1 == dup2(out, fileno(stdout))) { close(out); return -1; }
+        if (-1 == dup2(out, fileno(stderr))) { close(out); return -1; }
     }
 
     if ( debug ) printf ("############ START ################\n");
@@ -289,7 +289,10 @@ int main(int argc, char** argv)
     bool parent_ready = make_parent_ready();
 
     if ( setup )
+    {
+        if ( logfile ) close(out);
         return parent_ready ? 0 : -1;
+    }
 
     if ( !parent_ready )
         goto done;

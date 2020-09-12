@@ -42,8 +42,8 @@ int main(int argc, char** argv)
     bool read = false, write = false;
     size_t limit = 0;
     addr_t address = 0;
-    char *filepath;
-    uint32_t domid;
+    char *filepath = NULL;
+    uint32_t domid = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -88,9 +88,12 @@ int main(int argc, char** argv)
         .dtb = target_pagetable
     };
 
-    unsigned char *buffer = malloc(limit);
-    size_t fsize;
+    size_t fsize = 0;
     FILE *i = NULL;
+    unsigned char *buffer = malloc(limit);
+
+    if ( !buffer )
+        goto done;
 
     if ( read )
     {
@@ -108,6 +111,7 @@ int main(int argc, char** argv)
             printf("Write operation success: %lu bytes to 0x%lx\n", fsize, address);
     }
 
+done:
     if ( i )
         fclose(i);
 

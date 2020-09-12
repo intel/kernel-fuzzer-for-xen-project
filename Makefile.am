@@ -11,7 +11,7 @@ kfx_SOURCES = src/main.c src/private.h \
 
 kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS)
 kfx_CFLAGS  = -Wall -Wextra -fstack-protector -Wno-override-init \
-              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_LIBS)
+              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS)
 
 forkvm_SOURCES = src/forkvm_main.c src/forkvm.c src/forkvm.h
 forkvm_LDADD = $(LIBXC_LIBS)

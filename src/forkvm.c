@@ -15,7 +15,6 @@ bool fork_vm(uint32_t domid, uint32_t *forkdomid)
     if ( !domid || !forkdomid )
         return false;
 
-    int rc;
     struct xen_domctl_createdomain create = {0};
     create.flags |= XEN_DOMCTL_CDF_hvm;
     create.flags |= XEN_DOMCTL_CDF_hap;
@@ -27,10 +26,10 @@ bool fork_vm(uint32_t domid, uint32_t *forkdomid)
     create.max_grant_frames = LIBXL_MAX_GRANT_FRAMES_DEFAULT;
     create.max_maptrack_frames = LIBXL_MAX_MAPTRACK_FRAMES_DEFAULT;
 
-    if ( (rc = xc_domain_create(xc, forkdomid, &create)) )
+    if ( xc_domain_create(xc, forkdomid, &create) )
         return false;
 
-    if ( (rc = xc_memshr_fork(xc, domid, *forkdomid, true, true)) )
+    if ( xc_memshr_fork(xc, domid, *forkdomid, true, true) )
     {
         xc_domain_destroy(xc, *forkdomid);
         return false;

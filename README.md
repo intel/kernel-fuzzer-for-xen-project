@@ -13,6 +13,12 @@ This project is licensed under the terms of the MIT license
 
 ![](demo.gif)
 
+# Capability & Limitations
+
+Using this tool you can fuzz both ring-0 (kernel-mode) and ring-3 (user-mode) code, including transition from one to the other using system calls.
+
+Using VM forks for fuzzing on Xen restricts you to fuzz only code that does not perform any I/O operation. This means the target code can't fetch data from disk or communicate over the network. All code and data used for running your target needs to be already in memory when fuzzing begins. Interrupts are blocked during fuzzing so code that relies on timers is also out-of-scope. Furthermore, fuzzing is currently limited to a single vCPU so you won't be able detect race-conditions.
+
 # Table of Contents
 1. [Install dependencies](#section-1)
 2. [Grab the project and all submodules](#section-2)

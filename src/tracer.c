@@ -155,7 +155,7 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
         printf("[TRACER %s] RIP: 0x%lx", traptype[event->type], event->x86_regs->rip);
 
         if ( !nocov )
-            printf("CF limit: %lu/%lu\n", tracer_counter, limit);
+            printf(" CF limit: %lu/%lu\n", tracer_counter, limit);
     }
 
     /* Check if RIP is right now at any of the sink points */
@@ -362,7 +362,7 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
         doublefetch_check_va = 0;
         reset_mem_permission = 0;
 
-        if ( VMI_FAILURE == vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_R, 0) )
+        if ( VMI_FAILURE == vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_RW, 0) )
             return false;
 
         if ( debug ) printf("EPT access permissions removed from GFN 0x%lx\n", doublefetch);

@@ -19,6 +19,10 @@ Using this tool you can fuzz both ring-0 (kernel-mode) and ring-3 (user-mode) co
 
 Using VM forks for fuzzing on Xen restricts you to fuzz only code that does not perform any I/O operation. This means the target code can't fetch data from disk or communicate over the network. All code and data used for running your target needs to be already in memory when fuzzing begins. Interrupts are blocked during fuzzing so code that relies on timers is also out-of-scope. Furthermore, fuzzing is currently limited to a single vCPU so you won't be able detect race-conditions.
 
+# Contributions
+
+PRs that are fixing bugs of any kind are welcome but this repository is intended to be only a reference you use to create your own fuzzing setups. We encourage you to fork it and tune it to suite your fuzzing needs. PRs to this repository that add extra features will not be accepted as we try to keep this code-base simple.
+
 # Table of Contents
 1. [Install dependencies](#section-1)
 2. [Grab the project and all submodules](#section-2)

@@ -1,0 +1,132 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  compile:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - 'ubuntu-20.04'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake
+
+      - name: Setup ld
+        run: |
+          echo "$PWD/install/lib" | sudo tee -a /etc/ld.so.conf.d/kfx.conf
+          echo "/usr/local/lib" | sudo tee -a /etc/ld.so.conf.d/xen.conf
+
+      - name: Install capstone
+        run: |
+          export INSTALLDIR="$PWD/install"
+          git submodule update --init capstone
+          mkdir -p capstone/build
+          cd capstone/build
+          cmake -DCMAKE_INSTALL_PREFIX=$INSTALLDIR ..
+          make
+          make install
+          sudo ldconfig
+          cd ../..
+
+      - name: Get Xen hash
+        id: xenhash
+        run: |
+          git submodule update --init xen
+          cd xen
+          hash=$(git describe --always)
+          echo ::set-output name=hash::$hash
+
+      - uses: actions/cache@v2
+        id: xen-cache
+        with:
+          path: saved-xen
+          key: ${{ steps.xenhash.outputs.hash }}
+
+      - name: Compile Xen
+        if: steps.xen-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
+          sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
+          sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
+          sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
+          sudo apt-get install -y markdown pandoc transfig tgif fig2dev
+          sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
+          cd xen
+          echo CONFIG_EXPERT=y > xen/.config
+          echo CONFIG_MEM_SHARING=y >> xen/.config
+          ./configure --disable-pvshim --enable-ovmf
+          make -C xen olddefconfig
+          make debball
+          mkdir -p ~/saved-xen
+          mv dist/*.deb ~/saved-xen
+          cd ..
+
+      - name: Install Xen
+        run: sudo dpkg -i ~/saved-xen/*.deb
+
+      - name: Compile and install LibVMI
+        run: |
+          export INSTALLDIR="$PWD/install"
+          git submodule update --init libvmi
+          cd libvmi
+          autoreconf -vif
+          ./configure --disable-kvm --disable-file --disable-bareflank --disable-examples --disable-vmifs --prefix=$INSTALLDIR
+          make
+          make install
+          sudo ldconfig
+          cd ..
+
+      - name: Compile kfx
+        run: |
+          export INSTALLDIR="$PWD/install"
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALLDIR/lib/
+          export PKG_CONFIG_PATH="$INSTALLDIR/lib/pkgconfig/"
+          export LDFLAGS="-L$INSTALLDIR/lib"
+          export CFLAGS="-I$INSTALLDIR/include"
+          git submodule update --init libxdc
+          autoreconf -vif
+          ./configure --prefix=$INSTALLDIR
+          make
+          make install
+
+      - name: Create archive
+        id: archive
+        if: github.ref == 'refs/heads/master'
+        run: |
+          tag=$(git describe --always)
+          echo ::set-output name=tag::$tag
+          SAVEDIR="$PWD/safe"
+          echo $SAVEDIR
+          mkdir $SAVEDIR
+          mv $PWD/install/* $SAVEDIR
+          cp ~/saved-xen/*.deb $SAVEDIR
+          cd $SAVEDIR
+          tar czvf kfx.tar.gz lib bin include *.deb
+          mv kfx.tar.gz ..
+          cd ..
+          ls -la
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.archive.outputs.tag }}
+          release_name: Release ${{ steps.archive.outputs.tag }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./kfx.tar.gz
+          asset_name: kfx.tar.gz
+          asset_content_type: application/tar+gzip

@@ -2,23 +2,29 @@
 	path = libvmi
 	url = https://github.com/libvmi/libvmi
 	ignore = dirty
+	shallow = true
 [submodule "xen"]
 	path = xen
 	url = http://xenbits.xen.org/git-http/people/tklengyel/xen.git
 	ignore = dirty
+	shallow = true
 [submodule "dwarf2json"]
 	path = dwarf2json
 	url = https://github.com/tklengyel/dwarf2json
 	ignore = dirty
+	shallow = true
 [submodule "AFL"]
 	path = AFL
 	url = https://github.com/google/AFL
 	ignore = dirty
+	shallow = true
 [submodule "capstone"]
 	path = capstone
 	url = https://github.com/aquynh/capstone
 	ignore = dirty
+	shallow = true
 [submodule "libxdc"]
 	path = libxdc
 	url = https://github.com/tklengyel/libxdc
 	ignore = dirty
+	shallow = true

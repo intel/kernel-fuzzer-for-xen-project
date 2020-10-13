@@ -87,8 +87,7 @@ static bool fuzz(void)
     if ( afl )
     {
         afl_rewind();
-        if ( !ptcov )
-            afl_instrument_location(start_rip);
+        afl_instrument_location(start_rip);
         afl_wait();
     }
 

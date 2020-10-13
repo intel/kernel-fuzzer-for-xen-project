@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( !domid || (!read && !write) || (read && write) || !address | !limit || !filepath )
+    if ( !domid || (!read && !write) || (read && write) || !address || !limit || !filepath )
     {
         usage();
         return -1;

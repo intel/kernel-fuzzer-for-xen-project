@@ -34,7 +34,7 @@ static void usage(void)
     printf("\t --reset\n");
 }
 
-void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr, bool *cpuid)
+void print_instruction(vmi_instance_t _vmi, addr_t dtb, addr_t addr, bool *cpuid)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
@@ -46,7 +46,7 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr, bool *cpuid)
         .addr = addr
     };
 
-    vmi_read(vmi, &ctx, 15, buf, &read);
+    vmi_read(_vmi, &ctx, 15, buf, &read);
 
     if ( read )
     {
@@ -63,18 +63,18 @@ void print_instruction(vmi_instance_t vmi, addr_t dtb, addr_t addr, bool *cpuid)
         cs_free(insn, insn_count);
 }
 
-event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 {
     bool cpuid = false;
 
     count++;
 
-    print_instruction(vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
+    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
 
     if ( count >= limit || (stop_on_cpuid && cpuid) || event->x86_regs->rip == stop_rip )
     {
         interrupted = 1;
-        vmi_pause_vm(vmi);
+        vmi_pause_vm(_vmi);
         return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
     }
 
@@ -83,7 +83,7 @@ event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 
 int main(int argc, char** argv)
 {
-    int c, long_index = 0, rc;
+    int c, long_index = 0;
     const struct option long_opts[] =
     {
         {"help", no_argument, NULL, 'h'},

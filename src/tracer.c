@@ -98,7 +98,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
         .addr = start
     };
 
-    while ( !found && search < TRACER_CF_SEARCH_LIMIT )
+    while ( !found && search++ < TRACER_CF_SEARCH_LIMIT )
     {
         memset(buff, 0, 15);
 

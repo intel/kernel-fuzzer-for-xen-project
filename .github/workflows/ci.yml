@@ -42,27 +42,29 @@ jobs:
       - uses: actions/cache@v2
         id: xen-cache
         with:
-          path: saved-xen
+          path: ~/saved-xen
           key: ${{ steps.xenhash.outputs.hash }}
 
       - name: Compile Xen
-        if: steps.xen-cache.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
-          sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
-          sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
-          sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
-          sudo apt-get install -y markdown pandoc transfig tgif fig2dev
-          sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
-          cd xen
-          echo CONFIG_EXPERT=y > xen/.config
-          echo CONFIG_MEM_SHARING=y >> xen/.config
-          ./configure --disable-pvshim --enable-ovmf
-          make -C xen olddefconfig
-          make debball
-          mkdir -p ~/saved-xen
-          mv dist/*.deb ~/saved-xen
-          cd ..
+          debs=$(ls -la ~/saved-xen | grep deb | wc -l)
+          if [ $debs -eq 0 ]; then
+            sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
+            sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
+            sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
+            sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
+            sudo apt-get install -y markdown pandoc transfig tgif fig2dev
+            sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
+            cd xen
+            echo CONFIG_EXPERT=y > xen/.config
+            echo CONFIG_MEM_SHARING=y >> xen/.config
+            ./configure --disable-pvshim --enable-ovmf
+            make -C xen olddefconfig
+            make debball
+            mkdir -p ~/saved-xen
+            mv dist/*.deb ~/saved-xen
+            cd ..
+          fi
 
       - name: Install Xen
         run: sudo dpkg -i ~/saved-xen/*.deb
@@ -91,6 +93,15 @@ jobs:
           ./configure --prefix=$INSTALLDIR
           make
           make install
+
+      - name: Install dwarf2json
+        if: github.ref == 'refs/heads/master'
+        run: |
+          export INSTALLDIR="$PWD/install"
+          git submodule update --init dwarf2json
+          cd dwarf2json
+          go build
+          cp dwarf2json $INSTALLDIR/bin
 
       - name: Create archive
         id: archive

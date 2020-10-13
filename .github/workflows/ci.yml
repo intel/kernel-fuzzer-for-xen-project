@@ -9,6 +9,9 @@ jobs:
           - 'ubuntu-20.04'
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
       - name: Install dependencies
         run: |
           sudo apt-get update -q
@@ -26,7 +29,7 @@ jobs:
           mkdir -p capstone/build
           cd capstone/build
           cmake -DCMAKE_INSTALL_PREFIX=$INSTALLDIR ..
-          make
+          make -j2
           make install
           sudo ldconfig
           cd ../..
@@ -47,6 +50,7 @@ jobs:
 
       - name: Compile Xen
         run: |
+          mkdir -p ~/saved-xen
           debs=$(ls -la ~/saved-xen | grep deb | wc -l)
           if [ $debs -eq 0 ]; then
             sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
@@ -60,7 +64,7 @@ jobs:
             echo CONFIG_MEM_SHARING=y >> xen/.config
             ./configure --disable-pvshim --enable-ovmf
             make -C xen olddefconfig
-            make debball
+            make -j2 debball
             mkdir -p ~/saved-xen
             mv dist/*.deb ~/saved-xen
             cd ..
@@ -76,7 +80,7 @@ jobs:
           cd libvmi
           autoreconf -vif
           ./configure --disable-kvm --disable-file --disable-bareflank --disable-examples --disable-vmifs --prefix=$INSTALLDIR
-          make
+          make -j2
           make install
           sudo ldconfig
           cd ..
@@ -91,7 +95,7 @@ jobs:
           git submodule update --init libxdc
           autoreconf -vif
           ./configure --prefix=$INSTALLDIR
-          make
+          make -j2
           make install
 
       - name: Install dwarf2json

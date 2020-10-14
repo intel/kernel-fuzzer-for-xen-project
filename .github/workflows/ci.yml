@@ -79,7 +79,7 @@ jobs:
           git submodule update --init libvmi
           cd libvmi
           autoreconf -vif
-          ./configure --disable-kvm --disable-file --disable-bareflank --disable-examples --disable-vmifs --prefix=$INSTALLDIR
+          ./configure --disable-kvm --disable-file --disable-bareflank --disable-vmifs --prefix=$INSTALLDIR
           make -j2
           make install
           sudo ldconfig
@@ -106,6 +106,16 @@ jobs:
           cd dwarf2json
           go build
           cp dwarf2json $INSTALLDIR/bin
+
+      - name: Patch and install AFL
+        if: github.ref == 'refs/heads/master'
+        run: |
+          export DESTDIR="$PWD/install"
+          git submodule update --init AFL
+          cd AFL
+          patch -p1 < ../patches/0001-AFL-Xen-mode.patch
+          make
+          make PREFIX="" install
 
       - name: Create archive
         id: archive

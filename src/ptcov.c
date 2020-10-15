@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2020 Intel Corporation
+ * SPDX-License-Identifier: MIT
+ */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -95,12 +99,6 @@ bool setup_pt(void)
     if ( !(fmem = xenforeignmemory_open(0, 0)) )
         return false;
 
-    if ( xc_vmtrace_pt_enable(xc, fuzzdomid, 0) )
-        return false;
-
-    if ( !(fmem = xenforeignmemory_open(0, 0)) )
-        return false;
-
     if ( !(buf = g_malloc0(pt_buf_size + 1)) )
         return false;
 
@@ -125,7 +123,7 @@ bool setup_pt(void)
 
     void *map = afl_area_ptr ?: bitmap;
 
-    if ( !(decoder = libxdc_init(filter, &page_cache_fetch, NULL, map, 1ull<<16)) )
+    if ( !(decoder = libxdc_init(filter, &page_cache_fetch, NULL, map, MAP_SIZE)) )
         return false;
 
     if ( debug )

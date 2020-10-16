@@ -13,7 +13,7 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     addr_t rip = event->x86_regs->rip + event->cpuid_event.insn_length;
 
-    if ( event->cpuid_event.leaf == 0x13371337 )
+    if ( event->cpuid_event.leaf == magic_cpuid )
     {
         printf("Got start cpuid callback with leaf: 0x%x 0x%lx\n", event->cpuid_event.leaf, event->x86_regs->rip);
 
@@ -68,7 +68,7 @@ static void waitfor_start(vmi_instance_t vmi)
         if ( VMI_FAILURE == vmi_register_event(vmi, &cpuid_event) )
             return;
 
-        printf("Waiting for harness start (cpuid with leaf 0x13371337)\n");
+        printf("Waiting for harness start (cpuid with leaf 0x%x)\n", magic_cpuid);
 
     } else {
         SETUP_INTERRUPT_EVENT(&cc_event, start_cc_cb);

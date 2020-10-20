@@ -55,7 +55,7 @@ static bool make_fuzz_ready()
     if ( !fuzzdomid )
         return false;
 
-    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, false) )
+    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, false, true) )
     {
         fprintf(stderr, "Unable to start VMI on fuzz domain %u\n", fuzzdomid);
         return false;
@@ -145,7 +145,6 @@ static void usage(void)
     printf("Inputs required for SETUP step:\n");
     printf("\t  --setup\n");
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
-    printf("\t  --json <path to kernel debug json>\n");
     printf("\tOptional inputs:\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
     printf("\t  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
@@ -283,7 +282,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || !json || (!address && !setup) || (!setup && (!input_path || !input_limit)) )
+    if ( (!domain && !domid) || (!address && !setup) || (!setup && (!json || !input_path || !input_limit)) )
     {
         usage();
         return -1;

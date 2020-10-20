@@ -8,10 +8,12 @@ extern addr_t target_pagetable;
 extern addr_t start_rip;
 extern os_t os;
 extern int interrupted;
+extern page_mode_t pm;
 
-bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bool init_events, bool init_os)
+bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bool init_events, bool init_os, bool init_paging)
 {
-    printf("Init vmi, init_events: %i init_os %i domain %s domid %lu\n", init_events, init_os, domain, domid);
+    printf("Init vmi, init_events: %i init_os %i init_paging %i domain %s domid %lu\n",
+           init_events, init_os, init_paging, domain, domid);
 
     vmi_mode_t mode = (init_events ? VMI_INIT_EVENTS : 0) |
                       (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
@@ -21,15 +23,13 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bo
     if ( VMI_FAILURE == vmi_init(vmi, VMI_XEN, d, mode, NULL, NULL) )
         return false;
 
-    if ( !init_os )
+    if ( init_os && VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
     {
-        if ( VMI_PM_UNKNOWN == vmi_init_paging(*vmi, 0) )
-        {
-            vmi_destroy(*vmi);
-            return false;
-        }
+        vmi_destroy(*vmi);
+        return false;
     }
-    else if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
+    else
+    if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )
     {
         vmi_destroy(*vmi);
         return false;

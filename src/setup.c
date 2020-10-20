@@ -88,13 +88,12 @@ static void waitfor_start(vmi_instance_t vmi)
 
 bool make_parent_ready(void)
 {
-    if ( !setup_vmi(&parent_vmi, domain, domid, json, setup, true) )
+    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false, false) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");
         return false;
     }
 
-    pm = vmi_get_page_mode(parent_vmi, 0);
     vcpus = vmi_get_num_vcpus(parent_vmi);
 
     if ( vcpus > 1 )
@@ -103,12 +102,6 @@ bool make_parent_ready(void)
         return false;
     }
 
-    addr_t kaslr;
-    if ( debug && VMI_OS_LINUX == os && VMI_SUCCESS == vmi_get_offset(parent_vmi, "linux_kaslr", &kaslr) )
-        printf("Linux KASLR offset: 0x%lx\n", kaslr);
-
-    if ( !domain )
-        domain = vmi_get_name(parent_vmi);
     if ( !domid )
         domid = vmi_get_vmid(parent_vmi);
     if ( setup )

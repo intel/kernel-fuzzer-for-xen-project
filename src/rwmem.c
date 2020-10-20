@@ -11,6 +11,7 @@
 
 vmi_instance_t vmi;
 os_t os;
+page_mode_t pm;
 addr_t target_pagetable;
 addr_t start_rip;
 int interrupted;
@@ -79,7 +80,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, NULL, domid, NULL, false, false) )
+    if ( !setup_vmi(&vmi, NULL, domid, NULL, false, false, true) )
         return -1;
 
     access_context_t ctx = {

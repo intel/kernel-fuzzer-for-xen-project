@@ -133,7 +133,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, NULL, domid, NULL, true, false) )
+    if ( !setup_vmi(&vmi, NULL, domid, NULL, true, false, true) )
         return -1;
 
     if ( !(xc = xc_interface_open(0, 0, 0)) )

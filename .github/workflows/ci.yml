@@ -82,6 +82,7 @@ jobs:
           ./configure --disable-kvm --disable-file --disable-bareflank --disable-vmifs --prefix=$INSTALLDIR
           make -j2
           make install
+          rm $INSTALLDIR/lib/libvmi.la || :
           sudo ldconfig
           cd ..
 

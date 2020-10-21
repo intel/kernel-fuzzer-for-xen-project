@@ -160,6 +160,7 @@ static void usage(void)
     printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
     printf("\t  --magic-cpuid <magic cpuid leaf signaling start> (default is 0x13371337)\n");
+    printf("\t  --extended-cpuid (Use two-cpuids to obtain target address & size)\n");
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
     printf("\t  --refork <create new fork after # of executions>\n");
     printf("\t  --keep (keep VM fork after kfx exits)\n");
@@ -199,9 +200,10 @@ int main(int argc, char** argv)
         {"ptcov", no_argument, NULL, 'P'},
         {"detect-doublefetch", required_argument, NULL, 'D'},
         {"magic-cpuid", required_argument, NULL, 'm'},
+        {"extended-cpuid", required_argument, NULL, 'c'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:svhOKNPD";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:svchOKNPD";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -274,6 +276,9 @@ int main(int argc, char** argv)
             break;
         case 'm':
             magic_cpuid = strtoul(optarg, NULL, 0);
+            break;
+        case 'c':
+            extended_cpuid = true;
             break;
         case 'h': /* fall-through */
         default:

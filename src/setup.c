@@ -6,26 +6,48 @@
 
 extern int interrupted;
 extern bool parent_ready;
+extern bool extended_cpuid;
 
 static vmi_event_t cpuid_event, cc_event;
 
+static size_t buf_size;
+static addr_t buf_addr;
+static addr_t rip;
+
+static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
+{
+    vmi_pause_vm(vmi);
+    vmi_clear_event(vmi, event, NULL);
+
+    vmi_set_vcpureg(vmi, rip, RIP, event->vcpu_id);
+
+    parent_ready = 1;
+    interrupted = 1;
+}
+
 static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    addr_t rip = event->x86_regs->rip + event->cpuid_event.insn_length;
+    rip = event->x86_regs->rip + event->cpuid_event.insn_length;
 
     if ( event->cpuid_event.leaf == magic_cpuid )
     {
-        printf("Got start cpuid callback with leaf: 0x%x 0x%lx\n", event->cpuid_event.leaf, event->x86_regs->rip);
+        printf("Got start cpuid callback with leaf: 0x%x subleaf: 0x%x\n",
+               event->cpuid_event.leaf, event->cpuid_event.subleaf);
 
-        vmi_pause_vm(vmi);
-        vmi_clear_event(vmi, event, NULL);
+        if ( extended_cpuid )
+            buf_size = event->cpuid_event.subleaf;
+        else
+            cpuid_done(vmi, event);
+    }
+    else
+    if ( buf_size )
+    {
+        buf_addr = event->cpuid_event.leaf;
+        buf_addr <<= 32;
+        buf_addr |= event->cpuid_event.subleaf;
 
-        vmi_set_vcpureg(vmi, rip, RIP, event->vcpu_id);
-
-        parent_ready = 1;
-        interrupted = 1;
-
-        return 0;
+        printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
+        cpuid_done(vmi, event);
     }
 
     event->x86_regs->rip = rip;

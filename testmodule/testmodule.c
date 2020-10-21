@@ -13,6 +13,25 @@ static inline void harness(void)
                   : "bx", "cx", "dx");
 }
 
+/*
+ * The extended type harness can be used to override the default magic value &
+ * also to automatically transfer the information about the target buffer & size.
+ */
+static inline void harness_extended(unsigned int magic, void *a, size_t s)
+{
+    unsigned int high = (unsigned long)a >> 32;
+
+    asm volatile ("cpuid"
+                  : "=a" (magic)
+                  : "a" (magic), "c" (s)
+                  : "bx", "dx");
+    asm volatile ("cpuid"
+                  : "=a" (magic)
+                  : "a" (high), "c" (a)
+                  : "bx", "dx");
+}
+
+
 static int path1(int x)
 {
     return ++x;
@@ -61,7 +80,7 @@ static int my_init_module(void)
 
     printk(KERN_ALERT "Kernel Fuzzer Test Module Test1 0x%px %s Test2 0x%px %s\n", test1, test1, test2, test2);
 
-    harness();
+    harness_extended(0x13371337, &test1, sizeof(test1));
 
     x = test((int)test1[0]);
 

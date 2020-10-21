@@ -13,6 +13,9 @@ enum sink_enum {
     OOPS_BEGIN,
     PANIC,
     PAGE_FAULT,
+    KASAN_REPORT,
+    UBSAN_PROLOGUE,
+
     // Add new sink declarations here
 
     __SINK_MAX
@@ -44,6 +47,16 @@ const char *sinks[] = {
      * to do that since there is no disk.
      */
     [PAGE_FAULT] = "page_fault", // NOTE: after kernel 5.8 it is named asm_exc_page_fault
+
+    /*
+     * Catch when KASAN starts to report an error it caught.
+     */
+    [KASAN_REPORT] = "kasan_report",
+
+    /*
+     * Catch when UBSAN starts to report an error it caught.
+     */
+    [UBSAN_PROLOGUE] = "ubsan_prologue",
 };
 
 addr_t sink_vaddr[__SINK_MAX] =

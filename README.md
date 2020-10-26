@@ -17,7 +17,9 @@ This project is licensed under the terms of the MIT license
 
 Using this tool you can fuzz both ring-0 (kernel-mode) and ring-3 (user-mode) code, including transition from one to the other using system calls.
 
-Using VM forks for fuzzing on Xen restricts you to fuzz only code that does not perform any I/O operation. This means the target code can't fetch data from disk or communicate over the network. All code and data used for running your target needs to be already in memory when fuzzing begins. Interrupts are blocked during fuzzing so code that relies on timers is also out-of-scope. Furthermore, fuzzing is currently limited to a single vCPU so you won't be able detect race-conditions.
+Using VM forks for fuzzing on Xen restricts you to fuzz only code that does not perform any I/O operation. This means for example that the target code can't fetch data from disk or communicate over the network. All code and data used for running your target needs to be already in memory when fuzzing begins. Interrupts are blocked during fuzzing so code that relies on timers is also out-of-scope. Furthermore, fuzzing is currently limited to a single vCPU so you won't be able detect race-conditions.
+
+Fuzzing memory that is located on DMA pages is possible but output written to DMA pages will never reach the device. Fuzzing addresses that are designated MMIO areas is not possible. However, if an input is read from MMIO and stored in the VM's normal memory, then that memory can be fuzzed if the harness is placed just after the MMIO read. During fuzzing writes to MMIO memory are discarded.
 
 # Contributions
 
@@ -45,7 +47,9 @@ PRs that are fixing bugs of any kind are welcome but this repository is intended
 18. [Star fuzzing using AFL](#section-18)
 19. [Debugging](#section-19)
 20. [Intel Processor Trace](#section-20)
-21. [FAQ](#section-21)
+21. [Triaging crashes](#section-21)
+22. [Advanced harnessing](#section-22)
+22. [FAQ](#section-23)
 
 # Setup instruction for Ubuntu:
 
@@ -54,7 +58,7 @@ The following instructions have been mainly tested on Debian Bullseye and Ubuntu
 # 1. Install dependencies <a name="section-1"></a>
 ----------------------------------
 ```
-sudo apt install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip gcc-7 libsystemd-dev cmake snap gcc-multilib
+sudo apt-get install git build-essential libfdt-dev libpixman-1-dev libssl-dev libsdl1.2-dev autoconf libtool xtightvncviewer tightvncserver x11vnc uuid-runtime uuid-dev bridge-utils python3-dev liblzma-dev libc6-dev wget git bcc bin86 gawk iproute2 libcurl4-openssl-dev bzip2 libpci-dev libc6-dev libc6-dev-i386 linux-libc-dev zlib1g-dev libncurses5-dev patch libvncserver-dev libssl-dev libsdl-dev iasl libbz2-dev e2fslibs-dev ocaml libx11-dev bison flex ocaml-findlib xz-utils gettext libyajl-dev libpixman-1-dev libaio-dev libfdt-dev cabextract libglib2.0-dev autoconf automake libtool libjson-c-dev libfuse-dev liblzma-dev autoconf-archive kpartx python3-pip libsystemd-dev cmake snap gcc-multilib nasm binutils
 ```
 
 # 2. Grab the project and all submodules <a name="section-2"></a>
@@ -67,12 +71,6 @@ git submodule update --init
 
 # 3. Compile & Install Xen <a name="section-3"></a>
 ----------------------------------
-There had been some compiler issues with newer gcc's so set your gcc version to GCC-7:
-
-```
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
-```
-
 Make sure the pci include folder exists at `/usr/include/pci`. In case it doesn't create a symbolic link to where it's installed at:
 ```
 sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
@@ -80,7 +78,7 @@ sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
 
 Before installing Xen from source make sure you don't have any pre-existing Xen packages installed:
 ```
-sudo apt remove xen-* libxen*
+sudo apt-get remove xen-* libxen*
 ```
 
 Now we can compile & install Xen
@@ -88,7 +86,7 @@ Now we can compile & install Xen
 cd xen
 echo CONFIG_EXPERT=y > xen/.config
 echo CONFIG_MEM_SHARING=y >> xen/.config
-./configure --disable-pvshim --enable-githttp
+./configure --disable-pvshim --enable-githttp --enable-ovmf
 make -C xen olddefconfig
 make -j4 dist-xen
 make -j4 dist-tools
@@ -230,7 +228,7 @@ Inside the VM, using Debian, you can install everything right away
 
 ```
 su -
-apt update && apt install linux-image-$(uname -r)-dbg linux-headers-$(uname -r)
+apt-get update && apt-get install linux-image-$(uname -r)-dbg linux-headers-$(uname -r)
 ```
 
 On Ubuntu to install the Kernel debug symbols please follow the following tutorial: [https://wiki.ubuntu.com/Debug%20Symbol%20Packages](https://wiki.ubuntu.com/Debug%20Symbol%20Packages)
@@ -239,7 +237,7 @@ From the VM copy `/usr/lib/debug/boot/vmlinux-$(uname -r)` and `/boot/System.map
 
 # 8. Configure the VM's console <a name="section-8"></a>
 ---------------------------------
-Inside the VM, edit `/etc/default/grub` and add `console=ttyS0` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `update-grub` afterwards and `reboot`.
+Inside the VM, edit `/etc/default/grub` and add `console=ttyS0 nokaslr nopti` to `GRUB_CMDLINE_LINUX_DEFAULT` line. Run `update-grub` afterwards and `reboot`. Note that adding `nokaslr` and `nopti` are optional but can make triaging crashes easier.
 
 # 9. Build the kernel's debug JSON profile <a name="section-9"></a>
 ---------------------------------
@@ -334,8 +332,6 @@ You can insert the harness before and after the code segment you want to fuzz:
     harness();
 ```
 
-You can also use software breakpoints (0xCC) as your harness which can be placed by standard debuggers like GDB. Use `--harness-type breakpoint` for this mode, which is particularly useful when you don't have access to the target's source-code to compile it with the CPUID-based harness.
-
 # 15. Setup the VM for fuzzing <a name="section-15"></a>
 ---------------------------------
 Start `./kfx`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it.
@@ -400,8 +396,63 @@ When the VM is booted with this option set you can activate Intel PT decoding us
 
 Using this coverage tracing mode is more restrictive then the default. You can only fuzz code when the address space doesn't change (ie. no user-to-kernel switch, no process-switch). You also need Xen to run in bare-metal mode, it's not supported in a nested environment.
 
+# 21. Triaging crashes <a name="section-21"></a>
+---------------------------------
+After AFL finds a crash the first thing to do is to verify that the crash is reproducible. You can use `kfx` to run your target with the crashing input recorded by AFL as this:
 
-# 21. FAQ <a name="section-21"></a>
+```
+kfx --domain ubuntu-20.04 --json 5.4.0.json --address 0xffff8880334652b0 --input output/crashes/id\:000000\,sig\:06\,src\:000008\,op\:int16\,pos\:13\,val\:+128 --input-limit 16 --keep --debug
+```
+
+With the `--debug` flag specified you will see a verbose output of kfx and you will be able to see which sink point the input reaches. The `--keep` option will leave the VM forks paused after kfx exits, so you can examine the callstack using GDB:
+
+```
+gdbsx -a <vm fork domid> 64 0 4567 &
+gdb vmlinux -ex 'target remote :4567'
+```
+
+The `vmlinux` file should be your target kernel's debug file. In the GDB session you can take a look at the stack-trace of the execution by running `backtrace`. To access more advanced kernel debugging features of GDB (the `lx-` commands) it may be necessary to build your target kernel from source and run the gdb command from the kernel source folder.
+
+Alternatively, you can get full single-step coverage leading up the sink point using the `forkvm`, `rwmem` and `stepper` tools that accompany `kfx`.
+
+```
+forkvm <parent domid>
+rwmem --domid <vm fork domid> --write 0xffff8880334652b0 --file output/crashes/id\:000000\,sig\:06\,src\:000008\,op\:int16\,pos\:13\,val\:+128 --limit 16
+stepper --domid <vm fork domid> --limit 100000 --stop-on-address <sink address> > stepper.log
+cat stepper.log | awk '{ print $2 }' | addr2line -e vmlinux -f -p
+```
+
+In the above snipped we manually created a fork VM from the parent and then wrote the crash-causing input into the target buffer. These are exactly the steps kfx performs when it performs fuzzing as well. The stepper tool enable singlestepping of the entire VM and runs until `limit` number of instructions have been executed or the CPU reaches an instruction specified in `stop-on-address`. Here you want to specify the sink's address that you know will be reached by this execution from the above step when we ran `kfx` with `--debug`. The stepper output simply logs each instructions that was executed, so we store that log in a file. As the last step, we just look up each address in the kernel's debug image using `addr2line` the get the exact function name and source line that was executed. This is often more accurate to pinpoint the crashing code-site then a stack backtrace would be.
+
+# 22. Advanced harnessing <a name="section-22"></a>
+---------------------------------
+In case you want to add more then one harness to your target code, you can use the extended harness type as your start harness:
+
+```
+static inline void harness_extended(unsigned int magic, void *a, size_t s)
+{
+    unsigned int high = (unsigned long)a >> 32;
+
+    asm volatile ("cpuid"
+                  : "=a" (magic)
+                  : "a" (magic), "c" (s)
+                  : "bx", "dx");
+    asm volatile ("cpuid"
+                  : "=a" (magic)
+                  : "a" (high), "c" (a)
+                  : "bx", "dx");
+}
+
+```
+
+This allows you use any CPUID as your start marker so you can differentiate between them when running `--setup` with the `--magic-cpuid <magic number>` option. For the end harness you will still have to use `0x13371337` as the magic CPUID.
+
+Notice that there are two CPUIDs in this extended harness, the second CPUID is optional but can be used to transfer the information about your target buffer's address and size automatically to kfx. During the `--setup` step add `-c` so that kfx will know that there are two CPUIDs used to mark your start. This also eliminates the need for adding any `printk`s the your target and copying it from the console.
+
+You can also use software breakpoints (0xCC) as your harness which can be placed by standard debuggers like GDB. Use `--harness-type breakpoint` for this mode, which is particularly useful when you don't have access to the target's source-code to compile it with the CPUID-based harness. You will need to determine the start byte of the harness that was overwritten by the breakpoint and specify that to kfx with `--start-byte <byte>`. 
+
+
+# 23. FAQ <a name="section-23"></a>
 ---------------------------------
 
 > Can I run this on ring3 applications?

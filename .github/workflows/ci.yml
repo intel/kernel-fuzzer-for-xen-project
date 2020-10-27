@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake
+          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake clang
 
       - name: Setup ld
         run: |
@@ -111,10 +111,21 @@ jobs:
       - name: Patch and install AFL
         if: github.ref == 'refs/heads/master'
         run: |
-          export DESTDIR="$PWD/install"
+          export DESTDIR="$PWD/install/afl"
           git submodule update --init AFL
           cd AFL
           patch -p1 < ../patches/0001-AFL-Xen-mode.patch
+          make
+          make PREFIX="" install
+
+      - name: Patch and install AFLplusplus
+        if: github.ref == 'refs/heads/master'
+        run: |
+          export DESTDIR="$PWD/install/aflplusplus"
+          export CC=clang
+          git submodule update --init AFLplusplus
+          cd AFLplusplus
+          patch -p1 < ../patches/0001-AFLplusplus-Xen-mode.patch
           make
           make PREFIX="" install
 
@@ -130,7 +141,7 @@ jobs:
           mv $PWD/install/* $SAVEDIR
           cp ~/saved-xen/*.deb $SAVEDIR
           cd $SAVEDIR
-          tar czvf kfx.tar.gz lib bin include *.deb
+          tar czvf kfx.tar.gz lib bin include afl aflplusplus *.deb
           mv kfx.tar.gz ..
           cd ..
           ls -la

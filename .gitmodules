@@ -28,3 +28,8 @@
 	url = https://github.com/tklengyel/libxdc
 	ignore = dirty
 	shallow = true
+[submodule "AFLplusplus"]
+	path = AFLplusplus
+	url = https://github.com/AFLplusplus/AFLplusplus
+	ignore = dirty
+	shallow = true

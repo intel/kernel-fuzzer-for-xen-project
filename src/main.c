@@ -147,6 +147,8 @@ static void usage(void)
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
     printf("\tOptional inputs:\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
+    printf("\t  --magic-cpuid <magic cpuid leaf signaling start> (default is 0x13371337)\n");
+    printf("\t  --extended-cpuid (Use two-cpuids to obtain target address & size)\n");
     printf("\t  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
 
     printf("\n\n");
@@ -159,8 +161,6 @@ static void usage(void)
     printf("\tOptional inputs:\n");
     printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
-    printf("\t  --magic-cpuid <magic cpuid leaf signaling start> (default is 0x13371337)\n");
-    printf("\t  --extended-cpuid (Use two-cpuids to obtain target address & size)\n");
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
     printf("\t  --refork <create new fork after # of executions>\n");
     printf("\t  --keep (keep VM fork after kfx exits)\n");

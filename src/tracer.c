@@ -15,6 +15,7 @@ static vmi_event_t singlestep_event, int3_event, cpuid_event, ept_event;
 
 extern int interrupted;
 extern csh cs_handle;
+extern xc_interface *xc;
 
 /* doublefetch detection */
 static addr_t doublefetch_check_va;
@@ -402,6 +403,30 @@ void close_trace(vmi_instance_t vmi) {
     if ( debug ) printf("Closing tracer\n");
 }
 
+/*
+ * These HVM params are useless for the forks we use for fuzzing.
+ * Unset them to reduce the resetting overhead.
+ */
+static void unset_hvm_params(void)
+{
+    static const unsigned int unset_params[] = {
+        HVM_PARAM_STORE_PFN,
+        HVM_PARAM_STORE_EVTCHN,
+        HVM_PARAM_CONSOLE_PFN,
+        HVM_PARAM_CONSOLE_EVTCHN,
+        HVM_PARAM_PAGING_RING_PFN,
+        HVM_PARAM_IDENT_PT,
+        HVM_PARAM_CONSOLE_PFN,
+        HVM_PARAM_ACPI_IOPORTS_LOCATION,
+        HVM_PARAM_VM_GENERATION_ID_ADDR,
+        HVM_PARAM_CALLBACK_IRQ,
+    };
+
+    unsigned int i;
+    for ( i = 0; i < sizeof(unset_params)/sizeof(unsigned int); i++ )
+        xc_hvm_param_set(xc, sinkdomid, unset_params[i], 0);
+}
+
 /* Inject breakpoints into the sink points in the sink VM */
 bool make_sink_ready(void)
 {
@@ -446,6 +471,8 @@ bool make_sink_ready(void)
             printf("Setting breakpoint on sink %s 0x%lx -> 0x%lx\n",
                    sinks[c], sink_vaddr[c], sink_paddr[c]);
     }
+
+    unset_hvm_params();
 
     if ( debug ) printf("Sinks are ready\n");
     ret = true;

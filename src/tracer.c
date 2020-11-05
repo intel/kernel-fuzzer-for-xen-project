@@ -153,7 +153,7 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     if ( debug )
     {
-        printf("[TRACER %s] RIP: 0x%lx", traptype[event->type], event->x86_regs->rip);
+        printf("[TRACER %s] RIP: 0x%lx\n", traptype[event->type], event->x86_regs->rip);
 
         if ( !nocov )
             printf(" CF limit: %lu/%lu\n", tracer_counter, limit);

@@ -407,11 +407,18 @@ kfx --domain ubuntu-20.04 --json 5.4.0.json --address 0xffff8880334652b0 --input
 With the `--debug` flag specified you will see a verbose output of kfx and you will be able to see which sink point the input reaches. The `--keep` option will leave the VM forks paused after kfx exits, so you can examine the callstack using GDB:
 
 ```
-gdbsx -a <vm fork domid> 64 0 4567 &
+gdbsx -a <vm fork domid> 64 4567 &
 gdb vmlinux -ex 'target remote :4567'
 ```
 
 The `vmlinux` file should be your target kernel's debug file. In the GDB session you can take a look at the stack-trace of the execution by running `backtrace`. To access more advanced kernel debugging features of GDB (the `lx-` commands) it may be necessary to build your target kernel from source and run the gdb command from the kernel source folder.
+
+If you are debugging a loadable kernel module that's in the Linux kernel source tree you will need to load the symbols for it using `lx-symbols`. If you are debugging a module that's out of tree you will manually have to add the symbols while specifying the base-address of where the module is loaded at:
+
+```
+lx-lsmod
+add-symbol-file </path/to/module.ko> <module base address>
+```
 
 Alternatively, you can get full single-step coverage leading up the sink point using the `forkvm`, `rwmem` and `stepper` tools that accompany `kfx`.
 

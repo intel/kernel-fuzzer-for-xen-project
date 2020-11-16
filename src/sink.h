@@ -5,6 +5,12 @@
 #ifndef SINK_H
 #define SINK_H
 
+struct sink {
+    const char *function;
+    addr_t vaddr;
+    addr_t paddr;
+};
+
 /*
  * List all sink points here. When the kernel executes any of these functions
  * we will report a crash to AFL and stop the fuzzer.
@@ -23,8 +29,8 @@ enum sink_enum {
 };
 
 /* Now define what symbol each enum entry corresponds to in the debug json */
-const char *sinks[] = {
-    [PANIC] = "panic",
+static const struct sink sinks[] = {
+    [PANIC] = { .function = "panic" },
 
     /*
      * We can define as many sink points as we want. These sink points don't have
@@ -38,7 +44,7 @@ const char *sinks[] = {
      * So in essence we can define the sink points as anything of interest that we would
      * want AFL to record if its reached.
      */
-    [OOPS_BEGIN] = "oops_begin",
+    [OOPS_BEGIN] = { .function = "oops_begin" },
 
     /*
      * We interpret a page fault as a crash situation since we really shouldn't
@@ -46,37 +52,26 @@ const char *sinks[] = {
      * is a legitimate page-fault that would page memory back in, it won't be able
      * to do that since there is no disk.
      */
-    [PAGE_FAULT] = "page_fault", // NOTE: after kernel 5.8 it is named asm_exc_page_fault
+    [PAGE_FAULT] = { .function = "page_fault" }, // NOTE: after kernel 5.8 it is named asm_exc_page_fault
 
     /*
      * Catch when KASAN starts to report an error it caught.
      */
-    [KASAN_REPORT] = "kasan_report",
+    [KASAN_REPORT] = { .function = "kasan_report" },
 
     /*
      * Catch when UBSAN starts to report an error it caught.
      */
-    [UBSAN_PROLOGUE] = "ubsan_prologue",
-};
+    [UBSAN_PROLOGUE] = { .function = "ubsan_prologue" },
 
-addr_t sink_vaddr[__SINK_MAX] =
-{
-    [0 ... __SINK_MAX-1] = 0,
 
     /*
-     * You can manually define each sink's virtual address here. For example:
-    [PAGE_FAULT] = 0xffffffdeadbeef,
+     * You can manually define sinks by virtual address or physical address as well.
+     * Or you can use the command-line options --sink-vaddr/--sink-paddr too.
+     * Note that defining sinks on the command-line will disable using the built-in sinks
+     * that are listed in here.
      */
-};
-
-addr_t sink_paddr[__SINK_MAX] =
-{
-    [0 ... __SINK_MAX-1] = 0,
-
-    /*
-     * You can manually define each sink's physical address here. For example:
-    [PAGE_FAULT] = 0xdeadbeef,
-     */
+    //[CUSTOM_SINK] = { .function = "custom sink", .vaddr = 0xffffffdeadbeef },
 };
 
 #endif

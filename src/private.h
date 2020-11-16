@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
-
+#include <glib.h>
 #include <capstone.h>
 
 #include "signal.h"
@@ -24,6 +24,7 @@
 #include "tracer.h"
 #include "forkvm.h"
 #include "ptcov.h"
+#include "sink.h"
 
 char *domain;
 char *json;
@@ -60,5 +61,8 @@ unsigned int magic_cpuid;
 uint8_t start_byte;
 
 csh cs_handle;
+
+bool builtin_list;
+GSList *sink_list;
 
 #endif

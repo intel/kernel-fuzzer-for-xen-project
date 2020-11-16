@@ -167,6 +167,9 @@ static void usage(void)
     printf("\t  --nocov (disable coverage tracing)\n");
     printf("\t  --ptcov (use IPT coverage tracing)\n");
     printf("\t  --detect-doublefetch <kernel virtual address on page to detect doublefetch>\n");
+    printf("\t  --sink <function_name>\n");
+    printf("\t  --sink-vaddr <virtual address>\n");
+    printf("\t  --sink-paddr <physical address>\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -197,13 +200,16 @@ int main(int argc, char** argv)
         {"loopmode", no_argument, NULL, 'O'},
         {"keep", no_argument, NULL, 'K'},
         {"nocov", no_argument, NULL, 'N'},
-        {"ptcov", no_argument, NULL, 'P'},
+        {"ptcov", no_argument, NULL, 't'},
         {"detect-doublefetch", required_argument, NULL, 'D'},
         {"magic-cpuid", required_argument, NULL, 'm'},
         {"extended-cpuid", required_argument, NULL, 'c'},
+        {"sink", required_argument, NULL, 'n'},
+        {"sink-vaddr", required_argument, NULL, 'V'},
+        {"sink-paddr", required_argument, NULL, 'P'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:svchOKNPD";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:svchtOKND";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -268,7 +274,7 @@ int main(int argc, char** argv)
         case 'N':
             nocov = true;
             break;
-        case 'P':
+        case 't':
             ptcov = true;
             break;
         case 'D':
@@ -280,6 +286,27 @@ int main(int argc, char** argv)
         case 'c':
             extended_cpuid = true;
             break;
+        case 'n':
+        {
+            struct sink *s = g_malloc0(sizeof(struct sink));
+            s->function = optarg;
+            sink_list = g_slist_prepend(sink_list, s);
+            break;
+        }
+        case 'V':
+        {
+            struct sink *s = g_malloc0(sizeof(struct sink));
+            s->vaddr = strtoull(optarg, NULL, 0);
+            sink_list = g_slist_prepend(sink_list, s);
+            break;
+        }
+        case 'P':
+        {
+            struct sink *s = g_malloc0(sizeof(struct sink));
+            s->paddr = strtoull(optarg, NULL, 0);
+            sink_list = g_slist_prepend(sink_list, s);
+            break;
+        }
         case 'h': /* fall-through */
         default:
             usage();
@@ -427,6 +454,14 @@ done:
         xc_domain_destroy(xc, fuzzdomid);
     if ( sinkdomid && !keep )
         xc_domain_destroy(xc, sinkdomid);
+
+    if ( sink_list )
+    {
+        if ( !builtin_list )
+            g_slist_free_full(sink_list, g_free);
+        else
+            g_slist_free(sink_list);
+    }
 
     xc_interface_close(xc);
     cs_close(&cs_handle);

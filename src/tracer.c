@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 #include "private.h"
-#include "sink.h"
 
 static const char *traptype[] = {
     [VMI_EVENT_SINGLESTEP] = "singlestep",
@@ -160,16 +159,18 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     }
 
     /* Check if RIP is right now at any of the sink points */
-    int c;
-    for (c=0; c < __SINK_MAX; c++)
+    GSList *tmp;
+    for ( tmp=sink_list; tmp; tmp=tmp->next )
     {
-        if ( sink_vaddr[c] == event->x86_regs->rip )
+        struct sink *s = (struct sink*)tmp->data;
+
+        if ( s->paddr == (event->interrupt_event.gfn << 12) + event->interrupt_event.offset )
         {
             vmi_pause_vm(vmi);
             interrupted = 1;
             crash = 1;
 
-            if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Crash: %i.\n", sinks[c], tracer_counter, crash);
+            if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Crash: %i.\n", s->function, tracer_counter, crash);
 
             if ( VMI_EVENT_INTERRUPT == event->type )
                 event->interrupt_event.reinject = 0;
@@ -440,9 +441,22 @@ bool make_sink_ready(void)
     if ( debug && VMI_OS_LINUX == os && VMI_SUCCESS == vmi_get_offset(sink_vmi, "linux_kaslr", &kaslr) )
         printf("Linux KASLR offset: 0x%lx\n", kaslr);
 
-    int c;
-    for(c=0; c < __SINK_MAX; c++)
+    if ( !sink_list )
     {
+        // Create sink list based on built-in defaults
+        int c;
+        builtin_list = true;
+        if ( debug ) printf("Creating sink list from built-in information listed in sink.h\n");
+
+        for(c=0; c < __SINK_MAX; c++ )
+            sink_list = g_slist_prepend(sink_list, (void*)&sinks[c]);
+    }
+
+    GSList *tmp;
+    for ( tmp=sink_list; tmp; tmp=tmp->next )
+    {
+        struct sink *s = (struct sink*)tmp->data;
+
         /*
          * Note that we assume all sink points defined by name are standard kernel functions and thus LibVMI
          * can just look up their address in the provided json. We can use LibVMI to look up functions in other
@@ -450,26 +464,33 @@ bool make_sink_ready(void)
          * the kernel here is to get the addresses with KASLR adjustment automatically. For kernel modules
          * the address would need to be added to the module's base address.
          */
-        if ( !sink_vaddr[c] && VMI_FAILURE == vmi_translate_ksym2v(sink_vmi, sinks[c], &sink_vaddr[c]) )
+        if ( !s->vaddr && s->function && VMI_FAILURE == vmi_translate_ksym2v(sink_vmi, s->function, &s->vaddr) )
         {
-            fprintf(stderr, "Failed to find address for sink %s in the JSON\n", sinks[c]);
+            fprintf(stderr, "Failed to find address for sink %s in the JSON\n", s->function);
             continue;
         }
 
-        if ( !sink_paddr[c] && VMI_FAILURE == vmi_pagetable_lookup(sink_vmi, target_pagetable, sink_vaddr[c], &sink_paddr[c]) )
+        if ( !s->paddr && s->vaddr && VMI_FAILURE == vmi_pagetable_lookup(sink_vmi, target_pagetable, s->vaddr, &s->paddr) )
         {
-            if ( debug ) printf("Failed to translate %s V2P 0x%lx\n", sinks[c], sink_vaddr[c]);
+            if ( debug ) printf("Failed to translate %s V2P 0x%lx\n", s->function, s->vaddr);
             goto done;
         }
-        if ( VMI_FAILURE == vmi_write_pa(sink_vmi, sink_paddr[c], 1, &cc, NULL) )
+
+        if ( !s->paddr )
         {
-            if ( debug ) printf("Failed to write %s PA 0x%lx\n", sinks[c], sink_paddr[c]);
+            if ( debug ) printf("No physical address is defined for a sink! %s 0x%lx\n", s->function, s->vaddr);
+            goto done;
+        }
+
+        if ( VMI_FAILURE == vmi_write_pa(sink_vmi, s->paddr, 1, &cc, NULL) )
+        {
+            if ( debug ) printf("Failed to write %s PA 0x%lx\n", s->function, s->paddr);
             goto done;
         }
 
         if ( debug )
             printf("Setting breakpoint on sink %s 0x%lx -> 0x%lx\n",
-                   sinks[c], sink_vaddr[c], sink_paddr[c]);
+                   s->function, s->vaddr, s->paddr);
     }
 
     unset_hvm_params();

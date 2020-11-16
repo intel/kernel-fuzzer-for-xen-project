@@ -35,8 +35,8 @@ rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
 
 bin_PROGRAMS += stepper
 stepper_SOURCES = src/stepper.c src/vmi.c src/vmi.h src/signal.c src/signal.h
-stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS)
-stepper_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS)
+stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
+stepper_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
 
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \

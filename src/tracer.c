@@ -148,23 +148,27 @@ done:
     return found;
 }
 
-static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+/*
+ * Determine if the event is at a sink site. Use physical address to check.
+ */
+static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response_t *ret)
 {
-    if ( debug )
-    {
-        printf("[TRACER %s] RIP: 0x%lx\n", traptype[event->type], event->x86_regs->rip);
+    if ( VMI_EVENT_INTERRUPT != event->type && VMI_EVENT_SINGLESTEP != event->type )
+        return false;
 
-        if ( !nocov && !ptcov )
-            printf("CF limit: %lu/%lu\n", tracer_counter, limit);
-    }
+    addr_t rip_pa;
 
-    /* Check if RIP is right now at any of the sink points */
+    if ( VMI_EVENT_INTERRUPT == event->type )
+        rip_pa = (event->interrupt_event.gfn << 12) + event->interrupt_event.offset;
+    else
+        rip_pa = (event->ss_event.gfn << 12) + event->ss_event.offset;
+
     GSList *tmp;
     for ( tmp=sink_list; tmp; tmp=tmp->next )
     {
         struct sink *s = (struct sink*)tmp->data;
 
-        if ( s->paddr && s->paddr == (event->interrupt_event.gfn << 12) + event->interrupt_event.offset )
+        if ( s->paddr && s->paddr == rip_pa )
         {
             vmi_pause_vm(vmi);
             interrupted = 1;
@@ -176,11 +180,28 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
                 event->interrupt_event.reinject = 0;
 
             if ( VMI_EVENT_SINGLESTEP == event->type )
-                return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+                *ret = VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 
-            return 0;
+            return true;
         }
     }
+
+    return false;
+}
+
+static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    if ( debug )
+    {
+        printf("[TRACER %s] RIP: 0x%lx\n", traptype[event->type], event->x86_regs->rip);
+
+        if ( !nocov && !ptcov )
+            printf("CF limit: %lu/%lu\n", tracer_counter, limit);
+    }
+
+    event_response_t ret = 0;
+    if ( check_if_sink(vmi, event, &ret) )
+        return ret;
 
     /* Check if we hit the end harness */
     if ( VMI_EVENT_CPUID == event->type )

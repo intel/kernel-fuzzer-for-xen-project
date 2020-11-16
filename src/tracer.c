@@ -154,8 +154,8 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     {
         printf("[TRACER %s] RIP: 0x%lx\n", traptype[event->type], event->x86_regs->rip);
 
-        if ( !nocov )
-            printf(" CF limit: %lu/%lu\n", tracer_counter, limit);
+        if ( !nocov && !ptcov )
+            printf("CF limit: %lu/%lu\n", tracer_counter, limit);
     }
 
     /* Check if RIP is right now at any of the sink points */
@@ -164,7 +164,7 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     {
         struct sink *s = (struct sink*)tmp->data;
 
-        if ( s->paddr == (event->interrupt_event.gfn << 12) + event->interrupt_event.offset )
+        if ( s->paddr && s->paddr == (event->interrupt_event.gfn << 12) + event->interrupt_event.offset )
         {
             vmi_pause_vm(vmi);
             interrupted = 1;
@@ -444,11 +444,11 @@ bool make_sink_ready(void)
     if ( !sink_list )
     {
         // Create sink list based on built-in defaults
-        int c;
+        unsigned int c;
         builtin_list = true;
         if ( debug ) printf("Creating sink list from built-in information listed in sink.h\n");
 
-        for(c=0; c < __SINK_MAX; c++ )
+        for(c=0; c < sizeof(sinks)/sizeof(struct sink); c++ )
             sink_list = g_slist_prepend(sink_list, (void*)&sinks[c]);
     }
 

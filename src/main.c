@@ -354,12 +354,6 @@ int main(int argc, char** argv)
         goto done;
     }
 
-    if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
-    {
-        fprintf(stderr, "Capstone init failed\n");
-        goto done;
-    }
-
     /*
      * To reduce the churn of placing the sink breakpoints into the VM fork's memory
      * for each fuzzing iteration (which requires full-page copies for each breakpoint)
@@ -398,6 +392,12 @@ int main(int argc, char** argv)
     if ( !make_sink_ready() )
     {
         fprintf(stderr, "Seting up sinks on VM fork domid %u failed\n", sinkdomid);
+        goto done;
+    }
+
+    if ( !nocov && !ptcov && cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
+    {
+        fprintf(stderr, "Capstone init failed\n");
         goto done;
     }
 

@@ -23,10 +23,15 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bo
     if ( VMI_FAILURE == vmi_init(vmi, VMI_XEN, d, mode, NULL, NULL) )
         return false;
 
-    if ( init_os && VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
+    if ( init_os )
     {
-        vmi_destroy(*vmi);
-        return false;
+        if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
+        {
+            vmi_destroy(*vmi);
+            return false;
+        }
+
+        pm = vmi_get_page_mode(*vmi, 0);
     }
     else
     if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )

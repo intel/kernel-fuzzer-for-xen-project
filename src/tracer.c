@@ -90,7 +90,6 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
     size_t count;
 
     size_t read, search = 0;
-    unsigned char buff[15];
     bool found = false;
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
@@ -100,7 +99,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
 
     while ( !found && search++ < TRACER_CF_SEARCH_LIMIT )
     {
-        memset(buff, 0, 15);
+        unsigned char buff[15] = {0};
 
         if ( VMI_FAILURE == vmi_read(vmi, &ctx, 15, buff, &read) && !read )
         {
@@ -115,27 +114,21 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
             goto done;
         }
 
-        size_t j;
-        for ( j=0; j<count; j++) {
+        if ( debug ) printf("Next instruction @ 0x%lx: %s, size %i!\n", insn[0].address, insn[0].mnemonic, insn[0].size);
+        ctx.addr += insn[0].size;
 
-            ctx.addr = insn[j].address + insn[j].size;
-
-            if ( debug ) printf("Next instruction @ 0x%lx: %s, size %i!\n", insn[j].address, insn[j].mnemonic, insn[j].size);
-
-            if ( is_cf(insn[j].id) )
+        if ( is_cf(insn[0].id) )
+        {
+            next_cf_vaddr = insn[0].address;
+            if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, next_cf_vaddr, &next_cf_paddr) )
             {
-                next_cf_vaddr = insn[j].address;
-                if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, next_cf_vaddr, &next_cf_paddr) )
-                {
-                    if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, dtb);
-                    break;
-                }
-
-                found = true;
-
-                if ( debug ) printf("Found next control flow instruction @ 0x%lx: %s!\n", next_cf_vaddr, insn[j].mnemonic);
+                if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, dtb);
                 break;
             }
+
+            found = true;
+
+            if ( debug ) printf("Found next control flow instruction @ 0x%lx: %s!\n", next_cf_vaddr, insn[0].mnemonic);
         }
         cs_free(insn, count);
     }

@@ -38,6 +38,11 @@ stepper_SOURCES = src/stepper.c src/vmi.c src/vmi.h src/signal.c src/signal.h
 stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
 stepper_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
 
+bin_PROGRAMS += dmamonitor
+dmamonitor_SOURCES = src/dmamonitor.c src/vmi.c src/vmi.h src/signal.c src/signal.h
+dmamonitor_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
+dmamonitor_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
+
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \
              tools/README tools/Makefile tools/vmfork.go \

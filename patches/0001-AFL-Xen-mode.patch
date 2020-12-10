@@ -1,15 +1,14 @@
-From f6a5a87848a31f7f9a2c17582d853de94ed2fc17 Mon Sep 17 00:00:00 2001
-Message-Id: <f6a5a87848a31f7f9a2c17582d853de94ed2fc17.1588815834.git.tamas.lengyel@intel.com>
+From ac301a20fbadfc3d497b6c4cb97e488ff638624b Mon Sep 17 00:00:00 2001
 From: Tamas K Lengyel <tamas.lengyel@intel.com>
-Date: Wed, 6 May 2020 18:43:47 -0700
+Date: Thu, 10 Dec 2020 14:22:53 -0500
 Subject: [PATCH] AFL Xen mode
 
 ---
- afl-fuzz.c | 63 +++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 41 insertions(+), 22 deletions(-)
+ afl-fuzz.c | 66 ++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 44 insertions(+), 22 deletions(-)
 
 diff --git a/afl-fuzz.c b/afl-fuzz.c
-index 029afe9..cfa988a 100644
+index 029afe9..e14769e 100644
 --- a/afl-fuzz.c
 +++ b/afl-fuzz.c
 @@ -129,6 +129,7 @@ EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
@@ -52,7 +51,17 @@ index 029afe9..cfa988a 100644
  
    /* If we have a four-byte "hello" message from the server, we're all set.
       Otherwise, try to figure out what went wrong. */
-@@ -3453,7 +3459,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
+@@ -2452,6 +2458,9 @@ static u8 run_target(char** argv, u32 timeout) {
+ 
+   /* Report outcome to caller. */
+ 
++  if ( xen_mode && child_timed_out )
++    return FAULT_TMOUT;
++
+   if (WIFSIGNALED(status) && !stop_soon) {
+ 
+     kill_signal = WTERMSIG(status);
+@@ -3453,7 +3462,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
               "exec_timeout      : %u\n" /* Must match find_timeout() */
               "afl_banner        : %s\n"
               "afl_version       : " VERSION "\n"
@@ -61,7 +70,7 @@ index 029afe9..cfa988a 100644
               "command_line      : %s\n"
               "slowest_exec_ms   : %llu\n",
               start_time / 1000, get_cur_time() / 1000, getpid(),
-@@ -3464,10 +3470,10 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
+@@ -3464,10 +3473,10 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
               unique_hangs, last_path_time / 1000, last_crash_time / 1000,
               last_hang_time / 1000, total_execs - last_crash_execs,
               exec_tmout, use_banner,
@@ -74,7 +83,7 @@ index 029afe9..cfa988a 100644
                persistent_mode || deferred_mode) ? "" : "default",
               orig_cmdline, slowest_exec_ms);
               /* ignore errors */
-@@ -4406,7 +4412,7 @@ static void show_init_stats(void) {
+@@ -4406,7 +4415,7 @@ static void show_init_stats(void) {
  
    SAYF("\n");
  
@@ -83,7 +92,7 @@ index 029afe9..cfa988a 100644
      WARNF(cLRD "The target binary is pretty slow! See %s/perf_tips.txt.",
            doc_path);
  
-@@ -6805,8 +6811,8 @@ static void handle_stop_sig(int sig) {
+@@ -6805,8 +6814,8 @@ static void handle_stop_sig(int sig) {
  
    stop_soon = 1; 
  
@@ -94,7 +103,7 @@ index 029afe9..cfa988a 100644
  
  }
  
-@@ -6825,13 +6831,17 @@ static void handle_timeout(int sig) {
+@@ -6825,13 +6834,17 @@ static void handle_timeout(int sig) {
  
    if (child_pid > 0) {
  
@@ -115,7 +124,7 @@ index 029afe9..cfa988a 100644
  
    }
  
-@@ -6941,7 +6951,7 @@ EXP_ST void check_binary(u8* fname) {
+@@ -6941,7 +6954,7 @@ EXP_ST void check_binary(u8* fname) {
  
  #endif /* ^!__APPLE__ */
  
@@ -124,7 +133,7 @@ index 029afe9..cfa988a 100644
        !memmem(f_data, f_len, SHM_ENV_VAR, strlen(SHM_ENV_VAR) + 1)) {
  
      SAYF("\n" cLRD "[-] " cRST
-@@ -6966,7 +6976,7 @@ EXP_ST void check_binary(u8* fname) {
+@@ -6966,7 +6979,7 @@ EXP_ST void check_binary(u8* fname) {
  
      SAYF("\n" cLRD "[-] " cRST
           "This program appears to be instrumented with afl-gcc, but is being run in\n"
@@ -133,7 +142,7 @@ index 029afe9..cfa988a 100644
           "    slow and offer no practical benefits.\n");
  
      FATAL("Instrumentation found in -Q mode");
-@@ -7095,7 +7105,8 @@ static void usage(u8* argv0) {
+@@ -7095,7 +7108,8 @@ static void usage(u8* argv0) {
         "  -f file       - location read by the fuzzed program (stdin)\n"
         "  -t msec       - timeout for each run (auto-scaled, 50-%u ms)\n"
         "  -m megs       - memory limit for child process (%u MB)\n"
@@ -143,7 +152,7 @@ index 029afe9..cfa988a 100644
   
         "Fuzzing behavior settings:\n\n"
  
-@@ -7764,7 +7775,7 @@ int main(int argc, char** argv) {
+@@ -7764,7 +7778,7 @@ int main(int argc, char** argv) {
    gettimeofday(&tv, &tz);
    srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
  
@@ -152,7 +161,7 @@ index 029afe9..cfa988a 100644
  
      switch (opt) {
  
-@@ -7932,6 +7943,13 @@ int main(int argc, char** argv) {
+@@ -7932,6 +7946,13 @@ int main(int argc, char** argv) {
  
          break;
  
@@ -166,7 +175,7 @@ index 029afe9..cfa988a 100644
        default:
  
          usage(argv[0]);
-@@ -7952,6 +7970,7 @@ int main(int argc, char** argv) {
+@@ -7952,6 +7973,7 @@ int main(int argc, char** argv) {
  
      if (crash_mode) FATAL("-C and -n are mutually exclusive");
      if (qemu_mode)  FATAL("-Q and -n are mutually exclusive");
@@ -174,7 +183,7 @@ index 029afe9..cfa988a 100644
  
    }
  
-@@ -8105,8 +8124,8 @@ int main(int argc, char** argv) {
+@@ -8105,8 +8127,8 @@ int main(int argc, char** argv) {
    /* If we stopped programmatically, we kill the forkserver and the current runner. 
       If we stopped manually, this is done by the signal handler. */
    if (stop_soon == 2) {
@@ -186,5 +195,5 @@ index 029afe9..cfa988a 100644
    /* Now that we've killed the forkserver, we wait for it to be able to get rusage stats. */
    if (waitpid(forksrv_pid, NULL, 0) <= 0) {
 -- 
-2.25.1
+2.20.1
 

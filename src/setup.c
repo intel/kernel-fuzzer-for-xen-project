@@ -57,13 +57,9 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 
 static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = event->x86_regs->cr3,
-        .addr = event->x86_regs->rip
-    };
+    addr_t pa = (event->interrupt_event.gfn << 12) + event->interrupt_event.offset;
 
-    if ( VMI_SUCCESS == vmi_write_8(vmi, &ctx, &start_byte) )
+    if ( VMI_SUCCESS == vmi_write_8_pa(vmi, pa, &start_byte) )
     {
         event->interrupt_event.reinject = 0;
         parent_ready = 1;

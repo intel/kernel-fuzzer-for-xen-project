@@ -55,7 +55,7 @@ static bool make_fuzz_ready()
     if ( !fuzzdomid )
         return false;
 
-    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, false, true) )
+    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, true) )
     {
         fprintf(stderr, "Unable to start VMI on fuzz domain %u\n", fuzzdomid);
         return false;
@@ -157,7 +157,7 @@ static void usage(void)
     printf("\t  --input-limit <limit input size>\n");
     printf("\t  --address <kernel virtual address to inject input to>\n");
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
-    printf("\t  --json <path to kernel debug json>\n");
+    printf("\t  --json <path to kernel debug json> (needed only if default sink list is used or --sink is used)\n");
     printf("\tOptional inputs:\n");
     printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
@@ -314,7 +314,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || (!address && !setup) || (!setup && (!json || !input_path || !input_limit)) )
+    if ( (!domain && !domid) || (!address && !setup) || (!setup && ((!json && !sink_list) || !input_path || !input_limit)) )
     {
         usage();
         return -1;

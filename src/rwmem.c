@@ -80,7 +80,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, NULL, domid, NULL, false, false, true) )
+    if ( !setup_vmi(&vmi, NULL, domid, NULL, false, true) )
         return -1;
 
     access_context_t ctx = {

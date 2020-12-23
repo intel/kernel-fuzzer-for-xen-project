@@ -448,12 +448,8 @@ bool make_sink_ready(void)
     vmi_instance_t sink_vmi = NULL;
     bool ret = false;
 
-    if ( !setup_vmi(&sink_vmi, NULL, sinkdomid, json, false, true, true) )
+    if ( !setup_vmi(&sink_vmi, NULL, sinkdomid, json, false, true) )
         return ret;
-
-    addr_t kaslr;
-    if ( debug && VMI_OS_LINUX == os && VMI_SUCCESS == vmi_get_offset(sink_vmi, "linux_kaslr", &kaslr) )
-        printf("Linux KASLR offset: 0x%lx\n", kaslr);
 
     if ( !sink_list )
     {

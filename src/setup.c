@@ -106,7 +106,7 @@ static void waitfor_start(vmi_instance_t vmi)
 
 bool make_parent_ready(void)
 {
-    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false, false) )
+    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");
         return false;

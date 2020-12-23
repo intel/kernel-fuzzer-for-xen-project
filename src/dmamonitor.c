@@ -201,7 +201,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, domain, domid, json, true, true, true) )
+    if ( !setup_vmi(&vmi, domain, domid, json, true, true) )
         return -1;
 
     vmi_pause_vm(vmi);

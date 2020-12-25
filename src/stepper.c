@@ -22,6 +22,7 @@ int interrupted;
 unsigned long limit, count;
 xc_interface *xc;
 csh cs_handle;
+page_mode_t pm;
 
 static void usage(void)
 {
@@ -139,7 +140,7 @@ int main(int argc, char** argv)
     if ( !(xc = xc_interface_open(0, 0, 0)) )
         goto done;
 
-    if ( cs_open(CS_ARCH_X86, CS_MODE_64, &cs_handle) )
+    if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
         goto done;
 
     if ( reset && xc_memshr_fork_reset(xc, domid) )

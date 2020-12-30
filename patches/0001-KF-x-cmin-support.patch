@@ -1,22 +1,30 @@
-From d3af5e554c5794a139e17baba38fa1daddd97034 Mon Sep 17 00:00:00 2001
+From 027201f02dd9d560257acb04a7ffe55e0674a66f Mon Sep 17 00:00:00 2001
 From: b <buherator@silentsignal.hu>
 Date: Wed, 30 Dec 2020 17:42:18 +0100
 Subject: [PATCH] KF/x cmin support
 
 ---
- afl-cmin             | 14 +++++++++++---
+ afl-cmin             | 15 ++++++++++++---
  include/config.h     |  4 ++++
  include/forkserver.h |  2 ++
  src/afl-forkserver.c | 13 +++++++------
  src/afl-fuzz.c       | 14 ++++++++++++--
- src/afl-showmap.c    | 10 +++++++++-
- 6 files changed, 45 insertions(+), 12 deletions(-)
+ src/afl-showmap.c    | 11 ++++++++++-
+ 6 files changed, 47 insertions(+), 12 deletions(-)
 
 diff --git a/afl-cmin b/afl-cmin
-index d38e7a9..e661861 100755
+index d38e7a9..7bef954 100755
 --- a/afl-cmin
 +++ b/afl-cmin
-@@ -135,7 +135,7 @@ BEGIN {
+@@ -107,6 +107,7 @@ function usage() {
+ "  -m megs       - memory limit for child process ("mem_limit" MB)\n" \
+ "  -t msec       - run time limit for child process (none)\n" \
+ "  -Q            - use binary-only instrumentation (QEMU mode)\n" \
++"  -X            - use virtual machine instrumentation (Xen mode)\n" \
+ "  -U            - use unicorn-based instrumentation (unicorn mode)\n" \
+ "\n" \
+ "Minimization settings:\n" \
+@@ -135,7 +136,7 @@ BEGIN {
    # process options
    Opterr = 1    # default is to diagnose
    Optind = 1    # skip ARGV[0]
@@ -25,7 +33,7 @@ index d38e7a9..e661861 100755
      if (_go_c == "i") {
        if (!Optarg) usage()
        if (in_dir) { print "Option "_go_c" is only allowed once" > "/dev/stderr"}
-@@ -181,7 +181,15 @@ BEGIN {
+@@ -181,7 +182,15 @@ BEGIN {
        if ( !mem_limit_given ) mem_limit = "250"
        qemu_mode = 1
        continue
@@ -42,7 +50,7 @@ index d38e7a9..e661861 100755
      if (_go_c == "U") {
        if (unicorn_mode) { print "Option "_go_c" is only allowed once" > "/dev/stderr"}
        extra_par = extra_par " -U"
-@@ -272,7 +280,7 @@ BEGIN {
+@@ -272,7 +281,7 @@ BEGIN {
      target_bin = tnew
    }
  
@@ -170,10 +178,18 @@ index cefcd73..40a90c2 100644
  
          if (afl->use_wine) { FATAL("Multiple -W options not supported"); }
 diff --git a/src/afl-showmap.c b/src/afl-showmap.c
-index 7b46cd2..dac2e30 100644
+index 7b46cd2..6f06ed1 100644
 --- a/src/afl-showmap.c
 +++ b/src/afl-showmap.c
-@@ -589,7 +589,7 @@ int main(int argc, char **argv_orig, char **envp) {
+@@ -533,6 +533,7 @@ static void usage(u8 *argv0) {
+       "  -t msec       - timeout for each run (none)\n"
+       "  -m megs       - memory limit for child process (%d MB)\n"
+       "  -Q            - use binary-only instrumentation (QEMU mode)\n"
++      "  -X            - use virtual machine instrumentation (Xen mode)\n"
+       "  -U            - use Unicorn-based instrumentation (Unicorn mode)\n"
+       "  -W            - use qemu-based instrumentation with Wine (Wine mode)\n"
+       "                  (Not necessary, here for consistency with other afl-* "
+@@ -589,7 +590,7 @@ int main(int argc, char **argv_orig, char **envp) {
  
    if (getenv("AFL_QUIET") != NULL) { be_quiet = 1; }
  
@@ -182,7 +198,7 @@ index 7b46cd2..dac2e30 100644
  
      switch (opt) {
  
-@@ -720,6 +720,14 @@ int main(int argc, char **argv_orig, char **envp) {
+@@ -720,6 +721,14 @@ int main(int argc, char **argv_orig, char **envp) {
          fsrv->qemu_mode = 1;
          break;
  

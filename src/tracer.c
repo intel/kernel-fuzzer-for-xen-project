@@ -216,6 +216,9 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     /* We are still running */
     afl_instrument_location(event->x86_regs->rip);
 
+    if ( codecov )
+        g_hash_table_insert(codecov, GSIZE_TO_POINTER(event->x86_regs->rip), NULL);
+
     switch ( event->type )
     {
 
@@ -365,6 +368,9 @@ bool setup_trace(vmi_instance_t vmi)
             return false;
     }
 
+    if ( record_codecov )
+        codecov = g_hash_table_new(g_direct_hash, g_direct_equal);
+
     if ( debug ) printf("Setup trace finished\n");
     return true;
 }
@@ -402,6 +408,12 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
     return true;
 }
 
+static void save_codecov(gpointer k, gpointer v, gpointer d)
+{
+    (void)v;
+    fprintf((FILE*)d, "0x%" PRIx64 "\n", GPOINTER_TO_SIZE(k));
+}
+
 void close_trace(vmi_instance_t vmi) {
     vmi_clear_event(vmi, &singlestep_event, NULL);
     vmi_clear_event(vmi, &int3_event, NULL);
@@ -413,6 +425,17 @@ void close_trace(vmi_instance_t vmi) {
     {
         vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_N, 0);
         vmi_clear_event(vmi, &ept_event, NULL);
+    }
+
+    if ( record_codecov )
+    {
+        FILE *f = fopen(record_codecov, "w+");
+        if ( f )
+        {
+            g_hash_table_foreach(codecov, save_codecov, f);
+            fclose(f);
+        }
+        g_hash_table_destroy(codecov);
     }
 
     if ( debug ) printf("Closing tracer\n");

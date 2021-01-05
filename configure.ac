@@ -8,6 +8,7 @@ AC_CONFIG_MACRO_DIRS([m4])
 
 AC_CANONICAL_HOST
 AC_PROG_CC
+AC_PROG_CC_C99
 AM_SANITY_CHECK
 
 PKG_CHECK_MODULES([VMI], [libvmi],[],[AC_MSG_ERROR(LibVMI not found. Install missing package and re-run)])

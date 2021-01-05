@@ -170,6 +170,7 @@ static void usage(void)
     printf("\t  --sink <function_name>\n");
     printf("\t  --sink-vaddr <virtual address>\n");
     printf("\t  --sink-paddr <physical address>\n");
+    printf("\t  --record-codecov <path to save file>\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -207,9 +208,10 @@ int main(int argc, char** argv)
         {"sink", required_argument, NULL, 'n'},
         {"sink-vaddr", required_argument, NULL, 'V'},
         {"sink-paddr", required_argument, NULL, 'P'},
+        {"record-codecov", required_argument, NULL, 'R'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:svchtOKND";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:svchtOKND";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -307,6 +309,9 @@ int main(int argc, char** argv)
             sink_list = g_slist_prepend(sink_list, s);
             break;
         }
+        case 'R':
+            record_codecov = optarg;
+            break;
         case 'h': /* fall-through */
         default:
             usage();

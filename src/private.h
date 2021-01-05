@@ -45,6 +45,9 @@ bool ptcov;
 addr_t address;
 unsigned long limit;
 
+const char* record_codecov;
+GHashTable *codecov;
+
 xc_interface *xc;
 vmi_instance_t parent_vmi, vmi;
 os_t os;

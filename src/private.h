@@ -59,8 +59,8 @@ int vcpus;
 addr_t doublefetch;
 
 bool harness_cpuid;
-bool extended_cpuid;
-unsigned int magic_cpuid;
+bool extended_mark;
+unsigned int magic_mark;
 uint8_t start_byte;
 
 csh cs_handle;

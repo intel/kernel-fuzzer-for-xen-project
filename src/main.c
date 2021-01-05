@@ -147,8 +147,8 @@ static void usage(void)
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
     printf("\tOptional inputs:\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
-    printf("\t  --magic-cpuid <magic cpuid leaf signaling start> (default is 0x13371337)\n");
-    printf("\t  --extended-cpuid (Use two-cpuids to obtain target address & size)\n");
+    printf("\t  --magic-mark <magic number signaling start harness> (default is 0x13371337)\n");
+    printf("\t  --extended-mark (Use start harness to obtain target address & size)\n");
     printf("\t  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
 
     printf("\n\n");
@@ -203,8 +203,8 @@ int main(int argc, char** argv)
         {"nocov", no_argument, NULL, 'N'},
         {"ptcov", no_argument, NULL, 't'},
         {"detect-doublefetch", required_argument, NULL, 'D'},
-        {"magic-cpuid", required_argument, NULL, 'm'},
-        {"extended-cpuid", required_argument, NULL, 'c'},
+        {"magic-mark", required_argument, NULL, 'm'},
+        {"extended-mark", required_argument, NULL, 'c'},
         {"sink", required_argument, NULL, 'n'},
         {"sink-vaddr", required_argument, NULL, 'V'},
         {"sink-paddr", required_argument, NULL, 'P'},
@@ -215,9 +215,10 @@ int main(int argc, char** argv)
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
+    bool default_magic_mark = true;
 
+    magic_mark = 0x13371337;
     harness_cpuid = true;
-    magic_cpuid = 0x13371337;
     input_path = NULL;
     input_size = 0;
     input_limit = 0;
@@ -283,10 +284,11 @@ int main(int argc, char** argv)
             doublefetch = strtoull(optarg, NULL, 0);
             break;
         case 'm':
-            magic_cpuid = strtoul(optarg, NULL, 0);
+            default_magic_mark = false;
+            magic_mark = strtoul(optarg, NULL, 0);
             break;
         case 'c':
-            extended_cpuid = true;
+            extended_mark = true;
             break;
         case 'n':
         {
@@ -325,10 +327,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !harness_cpuid && !start_byte )
+    if ( !harness_cpuid )
     {
-        printf("For breakpoint harness --start-byte with a value must be provided (NOP is always a good option, 0x90)\n");
-        return -1;
+        if ( !start_byte )
+        {
+            printf("For breakpoint harness --start-byte with a value must be provided (NOP is always a good option, 0x90)\n");
+            return -1;
+        }
+
+        if ( default_magic_mark )
+            magic_mark = 0;
     }
 
     if ( logfile )

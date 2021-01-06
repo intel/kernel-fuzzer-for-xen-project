@@ -12,10 +12,6 @@ static const char *traptype[] = {
 };
 static vmi_event_t singlestep_event, int3_event, cpuid_event, ept_event;
 
-extern int interrupted;
-extern csh cs_handle;
-extern xc_interface *xc;
-
 /* doublefetch detection */
 static addr_t doublefetch_check_va;
 static addr_t reset_mem_permission;

@@ -9,6 +9,7 @@ extern addr_t start_rip;
 extern os_t os;
 extern int interrupted;
 extern page_mode_t pm;
+extern vmi_instance_t vmi;
 
 bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bool init_events, bool init_paging)
 {

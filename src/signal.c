@@ -2,10 +2,8 @@
  * Copyright (C) 2020 Intel Corporation
  * SPDX-License-Identifier: MIT
  */
-#include <signal.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include "private.h"
+#include "vmi.h"
+#include "signal.h"
 
 static struct sigaction act;
 extern int interrupted;

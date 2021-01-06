@@ -1,5 +1,6 @@
 bin_PROGRAMS = kfx
-kfx_SOURCES = src/main.c src/private.h \
+kfx_SOURCES = src/main.c \
+              src/private.c src/private.h \
               src/signal.c src/signal.h \
               src/vmi.c src/vmi.h \
               src/setup.c src/setup.h \

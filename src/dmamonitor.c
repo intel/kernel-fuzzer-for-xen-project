@@ -25,6 +25,7 @@ addr_t stop_rip;
 bool loopmode, reset, stop_on_cpuid;
 int interrupted;
 unsigned long limit, count;
+page_mode_t pm;
 
 addr_t dma_alloc_attrs, ret;
 uint8_t cc = 0xCC, ret_backup;

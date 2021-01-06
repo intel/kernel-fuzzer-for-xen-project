@@ -87,7 +87,7 @@ void afl_wait(void)
         return;
     }
 
-    pid_t pid = 13371337;
+    pid_t pid = getpid();
     if (write(FORKSRV_FD + 1, &pid, 4) != 4)
         afl = false;
 }

@@ -26,46 +26,45 @@
 #include "ptcov.h"
 #include "sink.h"
 
-char *domain;
-char *json;
-FILE *input_file;
-char *input_path;
-size_t input_size;
-size_t input_limit;
-unsigned char *input;
-uint32_t domid, sinkdomid, fuzzdomid;
-bool afl;
-bool parent_ready;
-bool crash;
-bool setup;
-bool debug;
-bool loopmode;
-bool nocov;
-bool ptcov;
-addr_t address;
-unsigned long limit;
+extern char *domain;
+extern char *json;
+extern FILE *input_file;
+extern char *input_path;
+extern size_t input_size;
+extern size_t input_limit;
+extern unsigned char *input;
+extern uint32_t domid, sinkdomid, fuzzdomid;
+extern bool afl;
+extern bool parent_ready;
+extern bool crash;
+extern bool setup;
+extern bool debug;
+extern bool loopmode;
+extern bool nocov;
+extern bool ptcov;
+extern addr_t address;
+extern unsigned long limit;
+extern const char* record_codecov;
+extern GHashTable *codecov;
 
-const char* record_codecov;
-GHashTable *codecov;
+extern xc_interface *xc;
+extern vmi_instance_t parent_vmi, vmi;
+extern os_t os;
+extern addr_t target_pagetable;
+extern addr_t start_rip;
+extern page_mode_t pm;
+extern int interrupted;
+extern int vcpus;
+extern addr_t doublefetch;
 
-xc_interface *xc;
-vmi_instance_t parent_vmi, vmi;
-os_t os;
-addr_t target_pagetable;
-addr_t start_rip;
-page_mode_t pm;
-int interrupted;
-int vcpus;
-addr_t doublefetch;
+extern bool harness_cpuid;
+extern bool extended_mark;
+extern unsigned int magic_mark;
+extern uint8_t start_byte;
 
-bool harness_cpuid;
-bool extended_mark;
-unsigned int magic_mark;
-uint8_t start_byte;
+extern csh cs_handle;
 
-csh cs_handle;
-
-bool builtin_list;
-GSList *sink_list;
+extern bool builtin_list;
+extern GSList *sink_list;
 
 #endif

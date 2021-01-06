@@ -4,8 +4,6 @@
  */
 #include "private.h"
 
-extern unsigned char* input;
-
 /* Environment variable used to pass SHM ID to the called program. */
 #define SHM_ENV_VAR         "__AFL_SHM_ID"
 #define FORKSRV_FD          198
@@ -89,8 +87,8 @@ void afl_wait(void)
         return;
     }
 
-    pid_t fakepid = 13371337;
-    if (write(FORKSRV_FD + 1, &fakepid, 4) != 4)
+    pid_t pid = 13371337;
+    if (write(FORKSRV_FD + 1, &pid, 4) != 4)
         afl = false;
 }
 

@@ -16,13 +16,6 @@
 
 #include "private.h"
 
-extern xc_interface *xc;
-extern uint32_t fuzzdomid;
-extern bool debug;
-extern reg_t target_pagetable;
-extern vmi_instance_t vmi;
-extern void *afl_area_ptr;
-
 static uint8_t *pt_buf, *buf;
 static void *bitmap;
 static uint64_t pt_buf_size;

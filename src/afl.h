@@ -7,6 +7,8 @@
 
 #define MAP_SIZE      (1ull << 16)
 
+extern unsigned char *afl_area_ptr;
+
 void afl_setup(void);
 void afl_rewind(void);
 void afl_wait(void);

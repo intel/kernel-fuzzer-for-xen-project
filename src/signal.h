@@ -5,6 +5,10 @@
 #ifndef SIGNAL_H
 #define SIGNAL_H
 
+#include <signal.h>
+#include <stdbool.h>
+#include <stddef.h>
+
 void setup_handlers();
 
 #endif

@@ -125,7 +125,6 @@ jobs:
           export CC=clang
           git submodule update --init AFLplusplus
           cd AFLplusplus
-          patch -p1 < ../patches/0001-AFLplusplus-Xen-mode.patch
           make
           make PREFIX="" install
 

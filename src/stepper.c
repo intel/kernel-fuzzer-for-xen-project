@@ -32,19 +32,27 @@ static void usage(void)
     printf("\t --loopmode\n");
     printf("\t --stop-on-cpuid\n");
     printf("\t --stop-on-address <addr>\n");
+    printf("\t --npt <addr>\n");
     printf("\t --reset\n");
 }
 
-void print_instruction(vmi_instance_t _vmi, addr_t dtb, addr_t addr, bool *cpuid)
+void print_instruction(vmi_instance_t _vmi, addr_t dtb, addr_t addr, addr_t npt, bool *cpuid)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
     size_t read = 0, insn_count = 0;
 
     access_context_t ctx = {
+        .version = ACCESS_CONTEXT_VERSION,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .dtb = dtb,
         .addr = addr
+    };
+
+    if ( npt )
+    {
+        ctx.npt = npt;
+        ctx.npm = VMI_PM_EPT_4L;
     };
 
     vmi_read(_vmi, &ctx, 15, buf, &read);
@@ -70,7 +78,7 @@ event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 
     count++;
 
-    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
+    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, event->x86_regs->npt_base, &cpuid);
 
     if ( count >= limit || (stop_on_cpuid && cpuid) || event->x86_regs->rip == stop_rip )
     {
@@ -94,10 +102,12 @@ int main(int argc, char** argv)
         {"reset", no_argument, NULL, 'r'},
         {"stop-on-cpuid", no_argument, NULL, 's'},
         {"stop-on-address", required_argument, NULL, 'S'},
+        {"npt", required_argument, NULL, 'n'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:L:l";
     uint32_t domid = 0;
+    addr_t npt = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -120,6 +130,9 @@ int main(int argc, char** argv)
             break;
         case 'S':
             stop_rip = strtoull(optarg, NULL, 0);
+            break;
+        case 'n':
+            npt = strtoull(optarg, NULL, 0);
             break;
         case 'h': /* fall-through */
         default:
@@ -158,7 +171,7 @@ int main(int argc, char** argv)
     do {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
-        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL);
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, npt, NULL);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
 

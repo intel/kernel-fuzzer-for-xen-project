@@ -11,7 +11,7 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_SANITY_CHECK
 
-PKG_CHECK_MODULES([VMI], [libvmi],[],[AC_MSG_ERROR(LibVMI not found. Install missing package and re-run)])
+PKG_CHECK_MODULES([VMI], [libvmi >= 0.15.0],[],[AC_MSG_ERROR(LibVMI not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([CAPSTONE], [capstone >= 4.0.2],[],[AC_MSG_ERROR(Capstone not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([LIBXC], [xencontrol >= 4.14.0],[],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([XENFMEM], [xenforeignmemory >= 1.3],[],[AC_MSG_ERROR(libxenforeignmemory not found. Install missing package and re-run)])

@@ -24,6 +24,7 @@ static void usage(void)
     printf("\t --write <address>\n");
     printf("\t --file <input/output file>\n");
     printf("\t --limit <input/output limit>\n");
+    printf("\t --npt <address>\n");
 }
 
 int main(int argc, char** argv)
@@ -37,12 +38,14 @@ int main(int argc, char** argv)
         {"write", required_argument, NULL, 'w'},
         {"limit", required_argument, NULL, 'L'},
         {"file", required_argument, NULL, 'f'},
+        {"npt", required_argument, NULL, 'n'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:j:r:w:L:f:";
     bool read = false, write = false;
     size_t limit = 0;
     addr_t address = 0;
+    addr_t npt = 0;
     char *filepath = NULL;
     uint32_t domid = 0;
 
@@ -67,6 +70,9 @@ int main(int argc, char** argv)
         case 'f':
             filepath = optarg;
             break;
+        case 'n':
+            npt = strtoull(optarg, NULL, 0);
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -84,9 +90,16 @@ int main(int argc, char** argv)
         return -1;
 
     access_context_t ctx = {
+        .version = ACCESS_CONTEXT_VERSION,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .addr = address,
         .dtb = target_pagetable
+    };
+
+    if ( npt )
+    {
+        ctx.npt = npt;
+        ctx.npm = VMI_PM_EPT_4L;
     };
 
     size_t fsize = 0;

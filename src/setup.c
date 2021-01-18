@@ -48,6 +48,10 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
         buf_addr |= event->cpuid_event.subleaf;
 
         printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
+
+        if ( event->x86_regs->npt_base )
+            printf("NPT: 0x%lx\n", event->x86_regs->npt_base);
+
         cpuid_done(vmi, event);
     }
 
@@ -58,27 +62,38 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 
 static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    addr_t pa = (event->interrupt_event.gfn << 12) + event->interrupt_event.offset;
-    bool start = true;
-
     if ( magic_mark && event->x86_regs->rax != magic_mark )
-        start = false;
-
-    if ( start && VMI_SUCCESS == vmi_write_8_pa(vmi, pa, &start_byte) )
     {
-        event->interrupt_event.reinject = 0;
-        parent_ready = 1;
-        vmi_pause_vm(vmi);
-        interrupted = 1;
-        vmi_clear_event(vmi, event, NULL);
-        printf("Parent VM is paused at the breakpoint location\n");
-
-        if ( extended_mark )
-            printf("Target buffer & size: 0x%lx %lu\n",
-                   event->x86_regs->rbx, event->x86_regs->rcx);
-
-    } else
         event->interrupt_event.reinject = 1;
+        return 0;
+    }
+
+    addr_t pa = (event->interrupt_event.gfn << 12) + event->interrupt_event.offset;
+    ACCESS_CONTEXT(ctx);
+    ctx.addr = pa;
+
+    if ( event->x86_regs->npt_base )
+    {
+        ctx.npt = event->x86_regs->npt_base;
+        ctx.npm = VMI_PM_EPT_4L;
+    }
+
+    event->interrupt_event.reinject = 0;
+
+    if ( VMI_FAILURE == vmi_write_8(vmi, &ctx, &start_byte) )
+        return 0;
+
+    parent_ready = 1;
+    vmi_pause_vm(vmi);
+    interrupted = 1;
+    vmi_clear_event(vmi, event, NULL);
+    printf("Parent VM is paused at the breakpoint location\n");
+
+    if ( extended_mark )
+        printf("Target buffer & size: 0x%lx %lu\n",
+               event->x86_regs->rbx, event->x86_regs->rcx);
+    if ( event->x86_regs->npt_base )
+        printf("NPT: 0x%lx\n", event->x86_regs->npt_base);
 
     return 0;
 }

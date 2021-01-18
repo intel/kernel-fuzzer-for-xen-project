@@ -40,6 +40,7 @@ static bool inject_input(vmi_instance_t vmi)
         return false;
 
     access_context_t ctx = {
+        .version = ACCESS_CONTEXT_VERSION,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .dtb = target_pagetable,
         .addr = address

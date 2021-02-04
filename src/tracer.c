@@ -14,7 +14,10 @@ static vmi_event_t singlestep_event, int3_event, cpuid_event, ept_event;
 
 /* doublefetch detection */
 static addr_t doublefetch_check_va;
+static addr_t doublefetch_rip;
 static addr_t reset_mem_permission;
+static GHashTable *doublefetch_lookup;
+static bool doublefetch_trip;
 
 /*
  * Control-flow tracing:
@@ -201,7 +204,12 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
             // Harness signal on finish
             vmi_pause_vm(vmi);
             interrupted = 1;
+
+            if ( doublefetch_trip )
+                crash = 1;
+
             if ( debug ) printf("\t Harness signal on finish\n");
+
             return 0;
         }
 
@@ -267,6 +275,10 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
              */
             vmi_pause_vm(vmi);
             interrupted = 1;
+
+            if ( doublefetch_trip )
+                crash = 1;
+
             if ( debug ) printf("\t Harness signal on finish\n");
             return 0;
         }
@@ -297,18 +309,24 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
         /* Only care about data-fetches */
         if ( event->mem_event.out_access & VMI_MEMACCESS_R )
         {
-            /* If fetch happened at the address we just saw, doublefetch detected! */
+            /* If fetch happened at the address we just saw last, doublefetch detected! */
             if ( event->mem_event.gla == doublefetch_check_va )
             {
                 if ( debug ) printf("Doublefetch detected at 0x%lx\n", event->mem_event.gla);
-                vmi_pause_vm(vmi);
-                interrupted = 1;
-                crash = 1;
-                break;
+
+                /*
+                 * Check if this doublefetch is triggered by a RIP-pair we haven't seen before.
+                 * We want to only report a crash back to AFL for new pairs and let the code
+                 * continue running.
+                 */
+                addr_t key = event->x86_regs->rip ^ doublefetch_rip;
+                if ( g_hash_table_insert(doublefetch_lookup, GSIZE_TO_POINTER(key), NULL) )
+                    doublefetch_trip = 1;
             }
 
             /* Store address currently fetched for future reference */
             doublefetch_check_va = event->mem_event.gla;
+            doublefetch_rip = event->x86_regs->rip;
         }
 
         /* Allow access through but mark that permissions need to be reset after singlestep */
@@ -362,6 +380,8 @@ bool setup_trace(vmi_instance_t vmi)
 
         if ( VMI_FAILURE == vmi_register_event(vmi, &ept_event) )
             return false;
+
+        doublefetch_lookup = g_hash_table_new(g_direct_hash, g_direct_equal);
     }
 
     if ( record_codecov )
@@ -379,6 +399,8 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
     {
         doublefetch_check_va = 0;
         reset_mem_permission = 0;
+        doublefetch_rip = 0;
+        doublefetch_trip = 0;
 
         if ( VMI_FAILURE == vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_RW, 0) )
             return false;
@@ -419,6 +441,7 @@ void close_trace(vmi_instance_t vmi) {
 
     if ( doublefetch )
     {
+        g_hash_table_destroy(doublefetch_lookup);
         vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_N, 0);
         vmi_clear_event(vmi, &ept_event, NULL);
     }

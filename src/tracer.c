@@ -448,7 +448,7 @@ void close_trace(vmi_instance_t vmi) {
 
     if ( record_codecov )
     {
-        FILE *f = fopen(record_codecov, "w+");
+        FILE *f = fopen(record_codecov, "a");
         if ( f )
         {
             g_hash_table_foreach(codecov, save_codecov, f);

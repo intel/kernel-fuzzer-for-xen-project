@@ -90,7 +90,7 @@ echo CONFIG_MEM_SHARING=y >> xen/.config
 make -C xen olddefconfig
 make -j4 dist-xen
 make -j4 dist-tools
-sudo su
+su -
 make -j4 install-xen
 make -j4 install-tools
 echo "/usr/local/lib" > /etc/ld.so.conf.d/xen.conf
@@ -113,7 +113,7 @@ Note that we assign 4GB RAM to dom0 above which is a safe default but feel free 
 If Xen doesn't boot from GRUB you can try to boot it from UEFI directly <a name="section-3b"></a>
 
 ```
-sudo su
+su -
 mkdir -p /boot/efi/EFI/xen
 cp /usr/lib64/efi/xen.efi /boot/efi/EFI/xen
 cp /boot/vmlinuz /boot/efi/EFI/xen
@@ -164,20 +164,23 @@ network:
 
 Apply the NetPlan configuration:
 ```
-sudo netplan generate
-sudo netplan apply
+su -
+netplan generate
+netplan apply
 ```
 
 Enable IP forwarding:
 ```
-sudo echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-sudo sysctl --system
+su -
+echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+sysctl --system
 ```
 
 Enable NAT and save the iptables rule, make sure to change eth0 to match your interface name facing the internet:
 ```
-sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-sudo apt-get install iptables-persistent
+su -
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+apt-get install iptables-persistent
 ```
 
 # 6. Create VM <a name="section-6"></a>
@@ -201,6 +204,7 @@ vncpasswd='1234567'
 usb=1
 usbdevice=['tablet']
 vga="stdvga"
+nomigrate=1
 # Make sure to update the paths below!
 disk=['file:/path/to/vmdisk.img,xvda,w',
       'file:/path/to/debian.iso,xvdc:cdrom,r']

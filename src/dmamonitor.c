@@ -46,6 +46,7 @@ static void usage(void)
     printf("\t--domid <domain id>\n");
     printf("\t--json <path to kernel debug json>\n");
     printf("\t--stacktrace\n");
+    printf("\t--dma <dma address>\n");
 }
 
 static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_mem_access_t access)

@@ -22,12 +22,13 @@ os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
 addr_t stop_rip;
-bool loopmode, reset, stop_on_cpuid;
+bool loopmode;
 int interrupted;
 unsigned long limit, count;
 page_mode_t pm;
 
 addr_t dma_alloc_attrs, ret;
+bool alloc_only;
 uint8_t cc = 0xCC, ret_backup;
 vmi_event_t interrupt_event;
 vmi_event_t mem_event;
@@ -47,6 +48,7 @@ static void usage(void)
     printf("\t--json <path to kernel debug json>\n");
     printf("\t--stacktrace\n");
     printf("\t--dma <dma address>\n");
+    printf("\t--alloc-only\n");
 }
 
 static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_mem_access_t access)
@@ -141,7 +143,8 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(event->x86_regs->rax));
 
-        set_dma_permissions(vmi, event->x86_regs->rax, event->x86_regs->cr3, VMI_MEMACCESS_RW);
+        if ( !alloc_only )
+            set_dma_permissions(vmi, event->x86_regs->rax, event->x86_regs->cr3, VMI_MEMACCESS_RW);
 
         event->interrupt_event.reinject = 0;
     }
@@ -156,15 +159,16 @@ int main(int argc, char** argv)
     int c, long_index = 0;
     const struct option long_opts[] =
     {
-        {"help", no_argument, NULL, 'h'},
         {"domain", required_argument, NULL, 'd'},
         {"domid", required_argument, NULL, 'i'},
         {"json", required_argument, NULL, 'j'},
         {"dma", required_argument, NULL, 'a'},
         {"stacktrace", no_argument, NULL, 's'},
+        {"alloc-only", no_argument, NULL, 'o'},
+        {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:L:l";
+    const char* opts = "d:i:j:a:soh";
     uint32_t domid = 0;
     char *domain = NULL, *json = NULL;
 
@@ -190,6 +194,9 @@ int main(int argc, char** argv)
             dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(addr));
             break;
         }
+        case 'o':
+            alloc_only = 1;
+            break;
         case 'h': /* fall-through */
         default:
             usage();

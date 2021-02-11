@@ -145,7 +145,13 @@ jobs:
           cd ..
           ls -la
 
-      - name: Create Release
+      - name: Delete old release
+        uses: ame-yu/action-delete-latest-release@v2
+        if: github.ref == 'refs/heads/master'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new release
         id: create_release
         uses: actions/create-release@v1
         if: github.ref == 'refs/heads/master'

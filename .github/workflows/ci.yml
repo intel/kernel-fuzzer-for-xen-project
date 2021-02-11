@@ -145,12 +145,6 @@ jobs:
           cd ..
           ls -la
 
-      - name: Delete old release
-        uses: ame-yu/action-delete-latest-release@v2
-        if: github.ref == 'refs/heads/master'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create new release
         id: create_release
         uses: actions/create-release@v1
@@ -174,3 +168,13 @@ jobs:
           asset_path: ./kfx.tar.gz
           asset_name: kfx.tar.gz
           asset_content_type: application/tar+gzip
+
+      - name: Delete old release
+        uses: dev-drprasad/delete-older-releases@v0.1.0
+        if: github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          keep_latest: 1
+          delete_tags: true
+

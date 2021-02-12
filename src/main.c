@@ -391,16 +391,20 @@ int main(int argc, char** argv)
 
     afl_setup();
 
-    input_file = fopen(input_path,"r"); // Sanity check
-    if ( !input_file )
+    if ( !afl )
     {
-        fprintf(stderr, "Failed to open input file %s\n", input_path);
-        goto done;
-    }
-    fclose(input_file); // Closing for now, will reopen when needed
-    input_file = NULL;
+        input_file = fopen(input_path,"r"); // Sanity check
+        if ( !input_file )
+        {
+            fprintf(stderr, "Failed to open input file %s\n", input_path);
+            goto done;
+        }
+        fclose(input_file); // Closing for now, will reopen when needed
 
-    if ( !afl ) printf("Fork VMs created: %u -> %u -> %u\n", domid, sinkdomid, fuzzdomid);
+        printf("Fork VMs created: %u -> %u -> %u\n", domid, sinkdomid, fuzzdomid);
+    }
+
+    input_file = NULL;
 
     if ( !make_sink_ready() )
     {

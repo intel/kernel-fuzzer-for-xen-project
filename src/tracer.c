@@ -83,18 +83,18 @@ static inline bool is_cf(unsigned int id)
 
 #define TRACER_CF_SEARCH_LIMIT 100u
 
-static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
+static bool next_cf_insn(vmi_instance_t vmi, addr_t cr3, addr_t start)
 {
     cs_insn *insn;
     size_t count;
 
     size_t read, search = 0;
     bool found = false;
-    access_context_t ctx = {
+    ACCESS_CONTEXT(ctx,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = dtb,
+        .pt = cr3,
         .addr = start
-    };
+    );
 
     while ( !found && search++ < TRACER_CF_SEARCH_LIMIT )
     {
@@ -102,14 +102,14 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
 
         if ( VMI_FAILURE == vmi_read(vmi, &ctx, 15, buff, &read) && !read )
         {
-            if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, dtb);
+            if ( debug ) printf("Failed to grab memory from 0x%lx with PT 0x%lx\n", start, cr3);
             goto done;
         }
 
         count = cs_disasm(cs_handle, buff, read, ctx.addr, 0, &insn);
         if ( !count )
         {
-            if ( debug ) printf("No instruction was found at 0x%lx with PT 0x%lx\n", ctx.addr, dtb);
+            if ( debug ) printf("No instruction was found at 0x%lx with PT 0x%lx\n", ctx.addr, cr3);
             goto done;
         }
 
@@ -119,9 +119,9 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t dtb, addr_t start)
         if ( is_cf(insn[0].id) )
         {
             next_cf_vaddr = insn[0].address;
-            if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, next_cf_vaddr, &next_cf_paddr) )
+            if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, next_cf_vaddr, &next_cf_paddr) )
             {
-                if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, dtb);
+                if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, cr3);
                 break;
             }
 

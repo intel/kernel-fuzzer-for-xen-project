@@ -91,11 +91,11 @@ int main(int argc, char** argv)
     if ( !setup_vmi(&vmi, NULL, domid, NULL, false, true) )
         return -1;
 
-    access_context_t ctx = {
+    ACCESS_CONTEXT(ctx,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = target_pagetable,
+        .pt = target_pagetable,
         .addr = address
-    };
+    );
 
     if ( pagetable )
     {

@@ -33,6 +33,7 @@ uint8_t cc = 0xCC, ret_backup;
 vmi_event_t interrupt_event;
 vmi_event_t mem_event;
 vmi_event_t singlestep_event;
+vmi_event_t reg_event;
 emul_insn_t emul_insn = { .dont_free = 1 };
 GSList *dma_list;
 
@@ -132,6 +133,15 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         event->interrupt_event.reinject = 0;
         event->emul_insn = &emul_insn;
+
+        printf("RDI: 0x%lx RSI: 0x%lx RDX: 0x%lx RCX: 0x%lx R8: 0x%lx R9: 0x%lx\n",
+               event->x86_regs->rdi,
+               event->x86_regs->rsi,
+               event->x86_regs->rdx,
+               event->x86_regs->rcx,
+               event->x86_regs->r8,
+               event->x86_regs->r9);
+
         return VMI_EVENT_RESPONSE_EMULATE | VMI_EVENT_RESPONSE_SET_EMUL_INSN;
     }
     else if ( event->interrupt_event.gla == ret )
@@ -150,6 +160,21 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
     }
     else
         event->interrupt_event.reinject = 1;
+
+    return 0;
+}
+
+static event_response_t efer_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    printf("MSR_EFER: 0x%lx\n", event->reg_event.value);
+
+    if ( event->reg_event.value & (1 << 0) )
+    {
+        printf("\tEFER SCE is set!\n");
+        vmi_clear_event(vmi, event, NULL);
+        interrupted = 1;
+    } else
+        printf("\tEFER SCE is NOT set!\n");
 
     return 0;
 }
@@ -210,24 +235,47 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, domain, domid, json, true, true) )
+    if ( !setup_vmi(&vmi, domain, domid, NULL, true, false) )
+    {
+        printf("Failed to enable LibVMI\n");
         return -1;
+    }
 
     vmi_pause_vm(vmi);
-
-    uint64_t rip = 0;
-    vmi_get_vcpureg(vmi, &rip, RIP, 0);
-
-    if ( rip < KERNEL_64 )
-    {
-        printf("VM is not in kernel mode, try again\n");
-        goto done;
-    }
 
     if ( vmi_get_num_vcpus(vmi) > 1 )
     {
         printf("More then 1 vCPUs are not supported\n");
         goto done;
+    }
+
+    if ( VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
+    {
+        printf("Don't know OS\n");
+
+        /* Linux hasn't booted yet, wait until EFER.SCE is set*/
+        SETUP_REG_EVENT(&reg_event, MSR_ANY, VMI_REGACCESS_W, 0, efer_cb);
+        reg_event.reg_event.msr = 0xC0000080;
+        if ( VMI_FAILURE == vmi_register_event(vmi, &reg_event) )
+        {
+            printf("Failed to register reg event\n");
+            goto done;
+        }
+
+        vmi_resume_vm(vmi);
+
+        while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
+        {}
+
+        vmi_pause_vm(vmi);
+
+        interrupted = 0;
+
+        if ( VMI_OS_LINUX != vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
+        {
+            printf("Can't find Linux after EFER.SCE is set\n");
+            goto done;
+        }
     }
 
     if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )

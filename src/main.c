@@ -39,11 +39,11 @@ static bool inject_input(vmi_instance_t vmi)
     if ( !input || !input_size )
         return false;
 
-    access_context_t ctx = {
+    ACCESS_CONTEXT(ctx,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = target_pagetable,
+        .pt = target_pagetable,
         .addr = address
-    };
+    );
 
     if ( debug ) printf("Writing %lu bytes of input to 0x%lx\n", input_size, address);
 

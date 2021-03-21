@@ -1,5 +1,5 @@
 AC_INIT([kernel-fuzzer], [1.0])
-AM_INIT_AUTOMAKE([1.14 subdir-objects])
+AM_INIT_AUTOMAKE([1.14 foreign subdir-objects])
 LT_INIT
 
 AC_CONFIG_SRCDIR(src/main.c)

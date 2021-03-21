@@ -1,7 +1,0 @@
-This is a test tool that was used while developing VM forking.
-
-Install requirements:
-    go get github.com/digitalocean/go-qemu/qmp
-
-Compile:
-    make

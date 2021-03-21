@@ -46,6 +46,5 @@ dmamonitor_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $
 
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \
-             tools/README tools/Makefile tools/vmfork.go \
              patches/0001-AFL-Xen-mode.patch \
-             testmodule/Makefile testmodule/testmodule.c
+             testmodule/Makefile testmodule/testmodule.c testmodule/doublefetch.c

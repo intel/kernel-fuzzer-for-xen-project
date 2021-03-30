@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <xenctrl.h>
 #include <capstone.h>
+#include <glib.h>
 #include "vmi.h"
 #include "signal.h"
 
@@ -57,7 +58,16 @@ void print_instruction(vmi_instance_t _vmi, addr_t dtb, addr_t addr, bool *cpuid
             *cpuid = true;
     }
 
-    printf("%5lu: 0x%16lx %10s ", count, addr, insn_count ? insn[0].mnemonic : "-");
+    printf("%5lu: 0x%16lx  ", count, addr);
+
+    if ( insn_count )
+    {
+        gchar *str = g_strconcat(insn[0].mnemonic, " ", insn[0].op_str, NULL);
+        printf("%-40s\t", str);
+        g_free(str);
+    } else
+        printf("%-40s\t", "-");
+
     vmi_print_hex(buf, read);
 
     if ( insn_count )

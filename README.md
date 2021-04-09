@@ -99,7 +99,7 @@ echo "none /proc/xen xenfs defaults,nofail 0 0" >> /etc/fstab
 systemctl enable xen-qemu-dom0-disk-backend.service
 systemctl enable xen-init-dom0.service
 systemctl enable xenconsoled.service
-echo "GRUB_CMDLINE_XEN_DEFAULT=\"hap_1gb=false hap_2mb=false dom0_mem=4096M\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_XEN_DEFAULT=\"hap_1gb=false hap_2mb=false dom0_mem=6096M hpet=legacy-replacement\"" >> /etc/default/grub
 update-grub
 reboot
 ```

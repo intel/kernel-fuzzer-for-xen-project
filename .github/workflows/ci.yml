@@ -90,6 +90,11 @@ jobs:
           sudo ldconfig
           cd ..
 
+      - name: Checkout libxdc
+        run: |
+          git submodule update --init libxdc
+          tar czvf libxdc.tar.gz libxdc
+
       - name: Compile kfx
         run: |
           export INSTALLDIR="$PWD/install"
@@ -97,7 +102,6 @@ jobs:
           export PKG_CONFIG_PATH="$INSTALLDIR/lib/pkgconfig/"
           export LDFLAGS="-L$INSTALLDIR/lib"
           export CFLAGS="-I$INSTALLDIR/include"
-          git submodule update --init libxdc
           autoreconf -vif
           ./configure --prefix=$INSTALLDIR
           make -j2

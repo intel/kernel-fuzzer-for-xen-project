@@ -26,13 +26,17 @@ bool loopmode;
 int interrupted;
 unsigned long limit, count;
 page_mode_t pm;
+char *json;
 
-addr_t dma_alloc_attrs, ret;
+addr_t dma_alloc_attrs, ret = 0;
+size_t alloc_size;
+addr_t alloc_dev;
 bool alloc_only;
 uint8_t cc = 0xCC, ret_backup;
 vmi_event_t interrupt_event;
 vmi_event_t mem_event;
 vmi_event_t singlestep_event;
+vmi_event_t reg_event;
 emul_insn_t emul_insn = { .dont_free = 1 };
 GSList *dma_list;
 
@@ -116,8 +120,15 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     if ( event->interrupt_event.gla == dma_alloc_attrs )
     {
-        addr_t tmp;
-        vmi_read_addr_va(vmi, event->x86_regs->rsp, 0, &tmp);
+        addr_t tmp = 0;
+        ACCESS_CONTEXT(ctx);
+        ctx.tm = VMI_TM_PROCESS_DTB;
+        ctx.addr = event->x86_regs->rsp;
+        ctx.pt = event->x86_regs->cr3;
+        ctx.pm = event->page_mode;
+
+        if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &tmp) )
+            printf("Reading stack return failed\n");
 
         if ( ret && ret != tmp )
         {
@@ -125,26 +136,44 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             vmi_write_8_va(vmi, ret, 0, &ret_backup);
         }
 
+        alloc_dev = event->x86_regs->rdi;
+        alloc_size = event->x86_regs->rsi;
+
         ret = tmp;
 
-        vmi_read_8_va(vmi, ret, 0, &ret_backup);
-        vmi_write_8_va(vmi, ret, 0, &cc);
+        if ( ret )
+        {
+            vmi_read_8_va(vmi, ret, 0, &ret_backup);
+            vmi_write_8_va(vmi, ret, 0, &cc);
 
-        event->interrupt_event.reinject = 0;
-        event->emul_insn = &emul_insn;
+            event->interrupt_event.reinject = 0;
+            event->emul_insn = &emul_insn;
+        }
+
         return VMI_EVENT_RESPONSE_EMULATE | VMI_EVENT_RESPONSE_SET_EMUL_INSN;
     }
     else if ( event->interrupt_event.gla == ret )
     {
+        target_pagetable = event->x86_regs->cr3;
         vmi_write_8_va(vmi, ret, 0, &ret_backup);
         ret = 0;
 
-        printf("DMA allocated @ 0x%lx\n", event->x86_regs->rax);
-
-        dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(event->x86_regs->rax));
+        printf("DMA allocated @ 0x%lx. Size: %lu. Dev: 0x%lx\n", event->x86_regs->rax, alloc_size, alloc_dev);
 
         if ( !alloc_only )
-            set_dma_permissions(vmi, event->x86_regs->rax, event->x86_regs->cr3, VMI_MEMACCESS_RW);
+        {
+            addr_t start = event->x86_regs->rax;
+
+            // Check if allocation is on a 4k page boundary, if yes we'll need to trap both 4k pages
+            if ( ((start + alloc_size - 1) >> 12) != (start >> 12) )
+                alloc_size += 0x1000;
+
+            for ( size_t i = 0; i < alloc_size; i+=0x1000 )
+            {
+                dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(start + i));
+                set_dma_permissions(vmi, start + i, event->x86_regs->cr3, VMI_MEMACCESS_RW);
+            }
+        }
 
         event->interrupt_event.reinject = 0;
     }
@@ -152,6 +181,35 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         event->interrupt_event.reinject = 1;
 
     return 0;
+}
+
+static event_response_t after_cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    event_response_t rc = VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+
+    if ( VMI_PM_UNKNOWN == vmi_init_paging(vmi, event->vcpu_id) )
+        return rc;
+
+    if ( VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
+        return rc;
+
+    interrupted = 1337;
+    vmi_pause_vm(vmi);
+
+    return rc;
+}
+
+static event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    /*
+     * We can't init the LibVMI OS-bits in the cr3 callback directly
+     * so instead we just going to singlestep once and try there.
+     *
+     * This is because the LibVMI init requires getting the current CR3
+     * but since we trapped the mov-to-cr3 the init would still see only
+     * the old value.
+     */
+    return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
 int main(int argc, char** argv)
@@ -170,7 +228,7 @@ int main(int argc, char** argv)
     };
     const char* opts = "d:i:j:a:soh";
     uint32_t domid = 0;
-    char *domain = NULL, *json = NULL;
+    char *domain = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -210,32 +268,19 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, domain, domid, json, true, true) )
+    if ( !setup_vmi(&vmi, domain, domid, NULL, true, false) )
+    {
+        printf("Failed to enable LibVMI\n");
         return -1;
+    }
 
     vmi_pause_vm(vmi);
-
-    uint64_t rip = 0;
-    vmi_get_vcpureg(vmi, &rip, RIP, 0);
-
-    if ( rip < KERNEL_64 )
-    {
-        printf("VM is not in kernel mode, try again\n");
-        goto done;
-    }
 
     if ( vmi_get_num_vcpus(vmi) > 1 )
     {
         printf("More then 1 vCPUs are not supported\n");
         goto done;
     }
-
-    if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
-        goto done;
-
-    printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
-
-    setup_handlers();
 
     SETUP_INTERRUPT_EVENT(&interrupt_event, int3_cb);
     if ( VMI_FAILURE == vmi_register_event(vmi, &interrupt_event) )
@@ -248,6 +293,43 @@ int main(int argc, char** argv)
     SETUP_MEM_EVENT(&mem_event, ~0ULL, VMI_MEMACCESS_RWX, mem_cb, 1);
     if ( VMI_FAILURE == vmi_register_event(vmi, &mem_event) )
         goto done;
+
+    if ( VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
+    {
+        SETUP_REG_EVENT(&reg_event, CR3, VMI_REGACCESS_W, 0, cr3_cb);
+        if ( VMI_FAILURE == vmi_register_event(vmi, &reg_event) )
+        {
+            printf("Failed to register CR3 event\n");
+            goto done;
+        }
+
+        singlestep_event.callback = after_cr3_cb;
+
+        vmi_resume_vm(vmi);
+
+        while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
+        {}
+
+        if ( interrupted != 1337 )
+            goto done;
+
+        vmi_clear_event(vmi, &reg_event, NULL);
+        singlestep_event.callback = singlestep_cb;
+        interrupted = 0;
+    }
+
+    if( VMI_OS_LINUX != vmi_get_ostype(vmi) )
+    {
+        printf("Only Linux is supported\n");
+        goto done;
+    }
+
+    if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
+        goto done;
+
+    printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
+
+    setup_handlers();
 
     if ( VMI_FAILURE == vmi_read_va(vmi, dma_alloc_attrs, 0, 15, &emul_insn.data, NULL) )
         goto done;

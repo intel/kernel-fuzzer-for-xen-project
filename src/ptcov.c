@@ -16,6 +16,12 @@
 
 #include "private.h"
 
+#define MSR_RTIT_CTL                        0x00000570
+#define  RTIT_CTL_OS                        (1 <<  2)
+#define  RTIT_CTL_USR                       (1 <<  3)
+#define  RTIT_CTL_DIS_RETC                  (1 << 11)
+#define  RTIT_CTL_BRANCH_EN                 (1 << 13)
+
 static uint8_t *pt_buf, *buf;
 static void *bitmap;
 static uint64_t pt_buf_size;
@@ -84,19 +90,29 @@ bool setup_pt(void)
     if ( !fuzzdomid )
         return false;
 
-    if ( xc_vmtrace_pt_get_offset(xc, fuzzdomid, 0, NULL, &pt_buf_size) )
+    xc_physinfo_t info;
+    if ( xc_physinfo(xc, &info) )
         return false;
 
-    if ( xc_vmtrace_pt_set_option(xc, fuzzdomid, 0, XEN_DOMCTL_VMTRACE_PT_OS_EN, 1) )
-        return false;
-
-    if ( xc_vmtrace_pt_set_option(xc, fuzzdomid, 0, XEN_DOMCTL_VMTRACE_PT_DIS_RETC, 1) )
-        return false;
-
-    if ( xc_vmtrace_pt_enable(xc, fuzzdomid, 0) )
+    if ( !(info.capabilities & XEN_SYSCTL_PHYSCAP_vmtrace) )
         return false;
 
     if ( !(fmem = xenforeignmemory_open(0, 0)) )
+        return false;
+
+    if ( xenforeignmemory_resource_size(fmem, fuzzdomid, XENMEM_resource_vmtrace_buf, 0, &pt_buf_size) )
+    {
+        fprintf(stderr, "ERROR: Unable to query vmtrace buffer size!\n");
+        fprintf(stderr, "Make sure the domain config option for vmtrace is set and that you have a newer kernel!\n");
+        return false;
+    }
+
+    if ( xc_vmtrace_set_option(
+             xc, fuzzdomid, 0, MSR_RTIT_CTL,
+             RTIT_CTL_BRANCH_EN | RTIT_CTL_USR | RTIT_CTL_OS | RTIT_CTL_DIS_RETC) )
+        return false;
+
+    if ( xc_vmtrace_enable(xc, fuzzdomid, 0) )
         return false;
 
     if ( !(buf = g_malloc0(pt_buf_size + 1)) )
@@ -144,7 +160,7 @@ bool decode_pt(void)
     bool ret;
     size_t size;
 
-    if ( xc_vmtrace_pt_get_offset(xc, fuzzdomid, 0, &size, NULL) )
+    if ( xc_vmtrace_output_position(xc, fuzzdomid, 0, &size) )
         return false;
 
     memcpy(buf, pt_buf, size);
@@ -188,5 +204,5 @@ bool close_pt(void)
     if ( fmem )
         xenforeignmemory_close(fmem);
 
-    return 0 == xc_vmtrace_pt_disable(xc, fuzzdomid, 0);
+    return 0 == xc_vmtrace_disable(xc, fuzzdomid, 0);
 }

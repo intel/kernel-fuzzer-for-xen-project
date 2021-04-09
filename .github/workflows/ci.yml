@@ -20,55 +20,58 @@ jobs:
       - name: Setup ld
         run: |
           echo "$PWD/install/lib" | sudo tee -a /etc/ld.so.conf.d/kfx.conf
-          echo "/usr/local/lib" | sudo tee -a /etc/ld.so.conf.d/xen.conf
 
       - name: Install capstone
         run: |
           export INSTALLDIR="$PWD/install"
           git submodule update --init capstone
+          tar czvf capstone.tar.gz capstone
           mkdir -p capstone/build
           cd capstone/build
           cmake -DCMAKE_INSTALL_PREFIX=$INSTALLDIR ..
           make -j2
           make install
+          rm -rf build
           sudo ldconfig
           cd ../..
 
       - name: Get Xen hash
-        id: xenhash
+        id: xen-hash
         run: |
-          git submodule update --init xen
-          cd xen
-          hash=$(git describe --always)
+          hash=$(git submodule | grep xen | awk '{print $1}')
           echo ::set-output name=hash::$hash
 
       - uses: actions/cache@v2
         id: xen-cache
         with:
           path: ~/saved-xen
-          key: ${{ steps.xenhash.outputs.hash }}
+          key: ${{ steps.xen-hash.outputs.hash }}
 
       - name: Compile Xen
+        if: steps.xen-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/saved-xen
-          debs=$(ls -la ~/saved-xen | grep deb | wc -l)
-          if [ $debs -eq 0 ]; then
-            sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
-            sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
-            sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
-            sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
-            sudo apt-get install -y markdown pandoc transfig tgif fig2dev
-            sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
-            cd xen
-            echo CONFIG_EXPERT=y > xen/.config
-            echo CONFIG_MEM_SHARING=y >> xen/.config
-            ./configure --disable-pvshim --enable-ovmf
-            make -C xen olddefconfig
-            make -j2 debball
-            mkdir -p ~/saved-xen
-            mv dist/*.deb ~/saved-xen
-            cd ..
-          fi
+          git submodule update --init xen
+          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
+          sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
+          sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
+          sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
+          sudo apt-get install -y markdown pandoc transfig tgif fig2dev
+          sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
+          cd xen
+          echo CONFIG_EXPERT=y > xen/.config
+          echo CONFIG_MEM_SHARING=y >> xen/.config
+          ./configure --disable-pvshim --enable-ovmf --enable-systemd
+          make -C xen olddefconfig
+          make -j2 dist-xen
+          make -j2 dist-tools
+          mkdir -p dist/install/etc/ld.so.conf.d
+          cp tools/misc/xen-vmtrace dist/install/usr/local/sbin
+          echo "/usr/local/lib" > dist/install/etc/ld.so.conf.d/xen.conf
+          make -j2 debball
+          mkdir -p ~/saved-xen
+          mv dist/*.deb ~/saved-xen
+          cd ..
 
       - name: Install Xen
         run: sudo dpkg -i ~/saved-xen/*.deb
@@ -77,6 +80,7 @@ jobs:
         run: |
           export INSTALLDIR="$PWD/install"
           git submodule update --init libvmi
+          tar czvf libvmi.tar.gz libvmi
           cd libvmi
           autoreconf -vif
           ./configure --disable-kvm --disable-file --disable-bareflank --disable-vmifs --prefix=$INSTALLDIR
@@ -104,6 +108,7 @@ jobs:
         run: |
           export INSTALLDIR="$PWD/install"
           git submodule update --init dwarf2json
+          tar czvf dwarf2json.tar.gz dwarf2json
           cd dwarf2json
           go build
           cp dwarf2json $INSTALLDIR/bin
@@ -113,6 +118,7 @@ jobs:
         run: |
           export DESTDIR="$PWD/install/afl"
           git submodule update --init AFL
+          tar czvf afl.tar.gz AFL
           cd AFL
           patch -p1 < ../patches/0001-AFL-Xen-mode.patch
           make
@@ -124,19 +130,21 @@ jobs:
           export DESTDIR="$PWD/install/aflplusplus"
           export CC=clang
           git submodule update --init AFLplusplus
+          tar czvf aflplusplus.tar.gz AFLplusplus
           cd AFLplusplus
           make
           make PREFIX="" install
 
-      - name: Create archive
+      - name: Create archives
         id: archive
         if: github.ref == 'refs/heads/master'
         run: |
           tag=$(git describe --always)
           echo ::set-output name=tag::$tag
-          SAVEDIR="$PWD/safe"
-          echo $SAVEDIR
-          mkdir $SAVEDIR
+          wget https://downloads.xenproject.org/release/xen/4.15.0/xen-4.15.0.tar.gz
+          tar czvf source.tar.gz $PWD/*.tar.gz
+          SAVEDIR="$PWD/save"
+          mkdir -p $SAVEDIR
           mv $PWD/install/* $SAVEDIR
           cp ~/saved-xen/*.deb $SAVEDIR
           cd $SAVEDIR
@@ -167,6 +175,18 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./kfx.tar.gz
           asset_name: kfx.tar.gz
+          asset_content_type: application/tar+gzip
+
+      - name: Upload Source Asset
+        id: upload-source-asset 
+        uses: actions/upload-release-asset@v1
+        if: github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./source.tar.gz
+          asset_name: source.tar.gz
           asset_content_type: application/tar+gzip
 
       - name: Delete old release

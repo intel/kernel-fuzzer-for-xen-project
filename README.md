@@ -393,8 +393,10 @@ sudo ./kfx --domain debian --json ~/debian.json --debug --input /path/to/input/f
 ---------------------------------
 Using Intel Processor Trace to collect the coverage trace information can significantly boost your fuzzing speed. For this mode to activate you have to add the following line to your VM's config:
 ```
-processor_trace_buf_kb=65536
+vmtrace_buf_kb=65536
 ```
+
+**Make sure your dom0 Linux kernel is a recent one. For example linux-image-5.10.0-1019-oem in the Ubuntu 20.04 repository has been confirmed to work. Linux 5.11 or newer will also work.**
 
 When the VM is booted with this option set you can activate Intel PT decoding using the kfx option `--ptcov`. You can adjust the buffer size up to 4GB in case you are fuzzing large code-segments. Beware that each fork will get an individual PT buffer allocated for it, so keep in mind the total memory limit your system has.
 

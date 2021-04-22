@@ -204,7 +204,7 @@ int main(int argc, char** argv)
         {"ptcov", no_argument, NULL, 't'},
         {"detect-doublefetch", required_argument, NULL, 'D'},
         {"magic-mark", required_argument, NULL, 'm'},
-        {"extended-mark", required_argument, NULL, 'c'},
+        {"extended-mark", no_argument, NULL, 'c'},
         {"sink", required_argument, NULL, 'n'},
         {"sink-vaddr", required_argument, NULL, 'V'},
         {"sink-paddr", required_argument, NULL, 'P'},

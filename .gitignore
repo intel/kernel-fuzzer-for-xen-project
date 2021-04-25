@@ -14,3 +14,7 @@ ltmain.sh
 **/*.m4
 **/*.a
 **/*.la
+compile
+depcomp
+install-sh
+missing

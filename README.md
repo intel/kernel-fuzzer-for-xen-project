@@ -447,11 +447,11 @@ static inline void harness_extended(unsigned int magic, void *a, size_t s)
     unsigned int high = (unsigned long)a >> 32;
 
     asm volatile ("cpuid"
-                  : "=a" (magic)
+                  : "=a" (magic), "=c" (magic)
                   : "a" (magic), "c" (s)
                   : "bx", "dx");
     asm volatile ("cpuid"
-                  : "=a" (magic)
+                  : "=a" (magic), "=c" (magic)
                   : "a" (high), "c" (a)
                   : "bx", "dx");
 }

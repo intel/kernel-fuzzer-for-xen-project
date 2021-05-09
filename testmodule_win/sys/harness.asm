@@ -22,19 +22,14 @@ harness_extended PROC
 	push rbx
 	push rcx
 	push rdx
-
-	mov r9,rdx
-	shr rdx,32
-	mov r10,rdx
+	push rsi
 
 	mov rax,rcx
+	mov rsi,rdx
 	mov rcx,r8
 	cpuid
 
-	mov rax,r10
-	mov rcx,r9
-	cpuid
-
+	pop rsi
 	pop rdx
 	pop rcx
 	pop rbx

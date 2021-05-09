@@ -11,8 +11,6 @@ extern unsigned int magic_mark;
 
 static vmi_event_t cpuid_event, cc_event;
 
-static size_t buf_size;
-static addr_t buf_addr;
 static addr_t rip;
 
 static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
@@ -36,18 +34,13 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
                event->cpuid_event.leaf, event->cpuid_event.subleaf);
 
         if ( extended_mark )
-            buf_size = event->cpuid_event.subleaf;
-        else
-            cpuid_done(vmi, event);
-    }
-    else
-    if ( buf_size )
-    {
-        buf_addr = event->cpuid_event.leaf;
-        buf_addr <<= 32;
-        buf_addr |= event->cpuid_event.subleaf;
+        {
+            addr_t buf_addr = event->x86_regs->rsi;
+            size_t buf_size = event->cpuid_event.subleaf;
 
-        printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
+            printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
+        }
+
         cpuid_done(vmi, event);
     }
 
@@ -114,6 +107,8 @@ static void waitfor_start(vmi_instance_t vmi)
 
 bool make_parent_ready(void)
 {
+    vmi_instance_t parent_vmi;
+
     if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");

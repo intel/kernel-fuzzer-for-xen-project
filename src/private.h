@@ -48,7 +48,7 @@ extern const char* record_codecov;
 extern GHashTable *codecov;
 
 extern xc_interface *xc;
-extern vmi_instance_t parent_vmi, vmi;
+extern vmi_instance_t vmi;
 extern os_t os;
 extern addr_t target_pagetable;
 extern addr_t start_rip;

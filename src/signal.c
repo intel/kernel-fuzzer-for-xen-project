@@ -14,7 +14,9 @@ static void close_handler(int sig)
 {
     interrupted = sig;
     loopmode = false;
-    vmi_pause_vm(vmi);
+
+    if ( vmi )
+        vmi_pause_vm(vmi);
 }
 
 void setup_handlers(void)

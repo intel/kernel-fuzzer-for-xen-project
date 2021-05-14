@@ -164,7 +164,9 @@ static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response
         {
             vmi_pause_vm(vmi);
             interrupted = 1;
-            crash = 1;
+
+            if ( !s->ignore )
+                crash = 1;
 
             if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Crash: %i.\n", s->function, tracer_counter, crash);
 

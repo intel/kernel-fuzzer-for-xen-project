@@ -9,6 +9,7 @@ struct sink {
     const char *function;
     addr_t vaddr;
     addr_t paddr;
+    bool ignore;
 };
 
 /*
@@ -61,6 +62,13 @@ static struct sink sinks[] = {
      * that are listed in here.
      */
     //{ .function = "custom sink", .vaddr = 0xffffffdeadbeef },
+
+    /*
+     * You can define sink points to stop fuzzing at when reached without reporting
+     * a crash. This is useful to close down loose paths that slow down the fuzzing
+     * without having to recompile the target with an endharness in place.
+     */
+    //{ .function = "printk", .ignore = 1 },
 };
 
 #endif

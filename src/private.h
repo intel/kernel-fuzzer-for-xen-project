@@ -45,7 +45,9 @@ extern bool ptcov;
 extern addr_t address;
 extern unsigned long limit;
 extern const char* record_codecov;
+extern const char* record_memaccess;
 extern GHashTable *codecov;
+extern GHashTable *memaccess;
 
 extern xc_interface *xc;
 extern vmi_instance_t vmi;
@@ -55,7 +57,7 @@ extern addr_t start_rip;
 extern page_mode_t pm;
 extern int interrupted;
 extern int vcpus;
-extern addr_t doublefetch;
+extern GSList* doublefetch;
 
 extern bool harness_cpuid;
 extern bool extended_mark;

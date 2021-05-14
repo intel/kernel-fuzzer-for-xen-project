@@ -209,9 +209,10 @@ int main(int argc, char** argv)
         {"sink-vaddr", required_argument, NULL, 'V'},
         {"sink-paddr", required_argument, NULL, 'P'},
         {"record-codecov", required_argument, NULL, 'R'},
+        {"record-memaccess", required_argument, NULL, 'M'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:svchtOKND";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKND";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -281,7 +282,7 @@ int main(int argc, char** argv)
             ptcov = true;
             break;
         case 'D':
-            doublefetch = strtoull(optarg, NULL, 0);
+            doublefetch = g_slist_prepend(doublefetch, GSIZE_TO_POINTER(strtoull(optarg, NULL, 0)));
             break;
         case 'm':
             default_magic_mark = false;
@@ -313,6 +314,9 @@ int main(int argc, char** argv)
         }
         case 'R':
             record_codecov = optarg;
+            break;
+        case 'M':
+            record_memaccess = optarg;
             break;
         case 'h': /* fall-through */
         default:

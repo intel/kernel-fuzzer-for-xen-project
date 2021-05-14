@@ -237,8 +237,9 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     {
         if ( reset_mem_permission )
         {
-            vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_RWX, 0);
+            vmi_set_mem_event(vmi, GPOINTER_TO_SIZE(event->data), VMI_MEMACCESS_RWX, 0);
             reset_mem_permission = 0;
+            if ( debug ) printf("Resetting EPT permission on GFN 0x%lx\n", GPOINTER_TO_SIZE(event->data));
         } else if ( next_cf_insn(vmi, event->x86_regs->cr3, event->x86_regs->rip) )
             breakpoint_next_cf(vmi);
 
@@ -327,11 +328,15 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
             /* Store address currently fetched for future reference */
             doublefetch_check_va = event->mem_event.gla;
             doublefetch_rip = event->x86_regs->rip;
+
+            if ( record_memaccess )
+                g_hash_table_insert(memaccess, GSIZE_TO_POINTER(event->mem_event.gla), GSIZE_TO_POINTER(event->x86_regs->rip));
         }
 
         /* Allow access through but mark that permissions need to be reset after singlestep */
-        vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_N, 0);
+        vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
         reset_mem_permission = 1;
+        singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);
 
         return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
     }
@@ -362,18 +367,10 @@ bool setup_trace(vmi_instance_t vmi)
             return false;
     }
 
+
     if ( doublefetch )
     {
-        // convert doublefetch page VA -> PA
-        if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, doublefetch, &doublefetch) )
-            return false;
-
-        if ( debug ) printf("Doublefetch PA 0x%lx\n", doublefetch);
-
-        // convert doublefetch page PA -> GFN
-        doublefetch >>= 12;
-
-        if ( debug ) printf("Doublefetch GFN 0x%lx\n", doublefetch);
+        doublefetch_lookup = g_hash_table_new(g_direct_hash, g_direct_equal);
 
         /* Register catch-all callback for all EPT events (most flexible LibVMI API) */
         SETUP_MEM_EVENT(&ept_event, ~0ULL, VMI_MEMACCESS_RWX, tracer_cb, 1);
@@ -381,11 +378,36 @@ bool setup_trace(vmi_instance_t vmi)
         if ( VMI_FAILURE == vmi_register_event(vmi, &ept_event) )
             return false;
 
-        doublefetch_lookup = g_hash_table_new(g_direct_hash, g_direct_equal);
+        GSList *new_list = NULL;
+        GSList *loop = doublefetch;
+        while ( loop )
+        {
+            addr_t addr = GPOINTER_TO_SIZE(loop->data);
+
+            // convert doublefetch page VA -> PA
+            if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, addr, &addr) )
+                return false;
+
+            if ( debug ) printf("Doublefetch PA 0x%lx\n", addr);
+
+            // convert doublefetch page PA -> GFN
+            addr >>= 12;
+
+            if ( debug ) printf("Doublefetch GFN 0x%lx\n", addr);
+
+            new_list = g_slist_prepend(new_list, GSIZE_TO_POINTER(addr));
+            loop = loop->next;
+        }
+
+        g_slist_free(doublefetch);
+        doublefetch = new_list;
     }
 
     if ( record_codecov )
         codecov = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    if ( record_memaccess )
+        memaccess = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     if ( debug ) printf("Setup trace finished\n");
     return true;
@@ -402,10 +424,23 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
         doublefetch_rip = 0;
         doublefetch_trip = 0;
 
-        if ( VMI_FAILURE == vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_RW, 0) )
-            return false;
+        GSList *loop = doublefetch;
+        while ( loop )
+        {
+            addr_t gfn = GPOINTER_TO_SIZE(loop->data);
 
-        if ( debug ) printf("EPT access permissions removed from GFN 0x%lx\n", doublefetch);
+            // trigger dedup before setting permission
+            uint8_t tmp;
+            vmi_read_8_pa(vmi, gfn<<12, &tmp);
+            vmi_write_8_pa(vmi, gfn<<12, &tmp);
+
+            if ( VMI_FAILURE == vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_RWX, 0) )
+                return false;
+
+            if ( debug ) printf("EPT access permissions removed from GFN 0x%lx\n", gfn);
+
+            loop = loop->next;
+        }
     }
 
     if ( !nocov && !ptcov )
@@ -426,10 +461,12 @@ bool start_trace(vmi_instance_t vmi, addr_t address) {
     return true;
 }
 
-static void save_codecov(gpointer k, gpointer v, gpointer d)
+static void save_cov(gpointer k, gpointer v, gpointer d)
 {
-    (void)v;
-    fprintf((FILE*)d, "0x%" PRIx64 "\n", GPOINTER_TO_SIZE(k));
+    if ( v )
+        fprintf((FILE*)d, "0x%" PRIx64 " 0x%" PRIx64 "\n", GPOINTER_TO_SIZE(v), GPOINTER_TO_SIZE(k));
+    else
+        fprintf((FILE*)d, "0x%" PRIx64 "\n", GPOINTER_TO_SIZE(k));
 }
 
 void close_trace(vmi_instance_t vmi) {
@@ -442,8 +479,17 @@ void close_trace(vmi_instance_t vmi) {
     if ( doublefetch )
     {
         g_hash_table_destroy(doublefetch_lookup);
-        vmi_set_mem_event(vmi, doublefetch, VMI_MEMACCESS_N, 0);
         vmi_clear_event(vmi, &ept_event, NULL);
+
+        GSList *loop = doublefetch;
+        while ( loop )
+        {
+            addr_t gfn = GPOINTER_TO_SIZE(loop->data);
+            vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_N, 0);
+            loop = loop->next;
+        }
+
+        g_slist_free(doublefetch);
     }
 
     if ( record_codecov )
@@ -451,10 +497,21 @@ void close_trace(vmi_instance_t vmi) {
         FILE *f = fopen(record_codecov, "a");
         if ( f )
         {
-            g_hash_table_foreach(codecov, save_codecov, f);
+            g_hash_table_foreach(codecov, save_cov, f);
             fclose(f);
         }
         g_hash_table_destroy(codecov);
+    }
+
+    if ( record_memaccess )
+    {
+        FILE *f = fopen(record_memaccess, "a");
+        if ( f )
+        {
+            g_hash_table_foreach(memaccess, save_cov, f);
+            fclose(f);
+        }
+        g_hash_table_destroy(memaccess);
     }
 
     if ( debug ) printf("Closing tracer\n");

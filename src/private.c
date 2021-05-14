@@ -24,7 +24,9 @@ bool ptcov;
 addr_t address;
 unsigned long limit;
 const char* record_codecov;
+const char* record_memaccess;
 GHashTable *codecov;
+GHashTable *memaccess;
 
 xc_interface *xc;
 vmi_instance_t parent_vmi, vmi;
@@ -34,7 +36,7 @@ addr_t start_rip;
 page_mode_t pm;
 int interrupted;
 int vcpus;
-addr_t doublefetch;
+GSList *doublefetch;
 
 bool harness_cpuid;
 bool extended_mark;

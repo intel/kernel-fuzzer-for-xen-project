@@ -1,0 +1,44 @@
+From 65fec93c6783448b1530673cdb684df4f2a9a114 Mon Sep 17 00:00:00 2001
+From: Tamas K Lengyel <tamas.lengyel@intel.com>
+Date: Tue, 27 Apr 2021 08:13:34 -0400
+Subject: [PATCH 2/4] Add more register to ELF vmcore dump
+
+---
+ target/i386/arch_dump.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/target/i386/arch_dump.c b/target/i386/arch_dump.c
+index 004141fc04..9eed2bb5c2 100644
+--- a/target/i386/arch_dump.c
++++ b/target/i386/arch_dump.c
+@@ -264,6 +264,10 @@ struct QEMUCPUState {
+      * by checking 'size' field.
+      */
+     uint64_t kernel_gs_base;
++    uint64_t efer, xcr0;
++    uint64_t star, cstar, lstar;
++    uint64_t sysenter_eip, sysenter_cs, sysenter_esp;
++    uint64_t dr6, dr7;
+ };
+ 
+ typedef struct QEMUCPUState QEMUCPUState;
+@@ -324,6 +328,16 @@ static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
+ 
+ #ifdef TARGET_X86_64
+     s->kernel_gs_base = env->kernelgsbase;
++    s->efer = env->efer;
++    s->xcr0 = env->xcr0;
++    s->star = env->star;
++    s->cstar = env->cstar;
++    s->lstar = env->lstar;
++    s->sysenter_cs = env->sysenter_cs;
++    s->sysenter_esp = env->sysenter_esp;
++    s->sysenter_eip = env->sysenter_eip;
++    s->dr6 = env->dr[6];
++    s->dr7 = env->dr[7];
+ #endif
+ }
+ 
+-- 
+2.27.0
+

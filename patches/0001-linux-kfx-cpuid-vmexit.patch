@@ -1,0 +1,53 @@
+From cff6db2599946d1b887a118b8586584f1cde61bc Mon Sep 17 00:00:00 2001
+From: Tamas K Lengyel <tamas.lengyel@intel.com>
+Date: Wed, 21 Apr 2021 14:41:24 +0000
+Subject: [PATCH] Add KVM KF/x CPUID exit
+
+---
+ arch/x86/kvm/cpuid.c     | 7 +++++++
+ include/uapi/linux/kvm.h | 4 ++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/arch/x86/kvm/cpuid.c b/arch/x86/kvm/cpuid.c
+index 6bd2f8b830e4..f9855cf5eacd 100644
+--- a/arch/x86/kvm/cpuid.c
++++ b/arch/x86/kvm/cpuid.c
+@@ -1138,6 +1138,13 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+ 
+ 	eax = kvm_rax_read(vcpu);
+ 	ecx = kvm_rcx_read(vcpu);
++
++	if ((vcpu->run->kfx.cpuid && eax == vcpu->run->kfx.cpuid) || (!vcpu->run->kfx.cpuid && eax == KVM_EXIT_KFX_CPUID)) {
++		vcpu->run->exit_reason = KVM_EXIT_KFX_CPUID;
++		kvm_skip_emulated_instruction(vcpu);
++		return 0;
++	}
++
+ 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+ 	kvm_rax_write(vcpu, eax);
+ 	kvm_rbx_write(vcpu, ebx);
+diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
+index f6afee209620..2d9166d0ff0c 100644
+--- a/include/uapi/linux/kvm.h
++++ b/include/uapi/linux/kvm.h
+@@ -268,6 +268,7 @@ struct kvm_xen_exit {
+ #define KVM_EXIT_AP_RESET_HOLD    32
+ #define KVM_EXIT_X86_BUS_LOCK     33
+ #define KVM_EXIT_XEN              34
++#define KVM_EXIT_KFX_CPUID        0x13371337
+ 
+ /* For KVM_EXIT_INTERNAL_ERROR */
+ /* Emulate instruction failed. */
+@@ -446,6 +447,9 @@ struct kvm_run {
+ 		} msr;
+ 		/* KVM_EXIT_XEN */
+ 		struct kvm_xen_exit xen;
++		struct {
++				__u32 cpuid;
++		} kfx;
+ 		/* Fix the size of the union. */
+ 		char padding[256];
+ 	};
+-- 
+2.25.1
+

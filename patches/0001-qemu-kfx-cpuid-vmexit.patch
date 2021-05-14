@@ -1,0 +1,189 @@
+From e2fd11b75844a17ba7a2e1e2e03a6d943b1b2d62 Mon Sep 17 00:00:00 2001
+From: Tamas K Lengyel <tamas.lengyel@intel.com>
+Date: Wed, 21 Apr 2021 11:50:23 +0000
+Subject: [PATCH 1/2] QEMU KF/x VMEXIT support
+
+---
+ accel/kvm/kvm-all.c       |  6 ++++++
+ include/monitor/hmp.h     |  1 +
+ include/sysemu/kvm.h      |  3 +++
+ linux-headers/linux/kvm.h |  5 +++++
+ monitor/hmp-cmds.c        |  8 ++++++++
+ qapi/kfx.json             | 25 +++++++++++++++++++++++++
+ qapi/meson.build          |  1 +
+ qapi/qapi-schema.json     |  1 +
+ target/i386/kvm/kvm.c     |  8 ++++++++
+ 9 files changed, 58 insertions(+)
+ create mode 100644 qapi/kfx.json
+
+diff --git a/accel/kvm/kvm-all.c b/accel/kvm/kvm-all.c
+index b6d9f92f15..fd0dac2460 100644
+--- a/accel/kvm/kvm-all.c
++++ b/accel/kvm/kvm-all.c
+@@ -147,6 +147,7 @@ bool kvm_vm_attributes_allowed;
+ bool kvm_direct_msi_allowed;
+ bool kvm_ioeventfd_any_length_allowed;
+ bool kvm_msi_use_devid;
++uint32_t kvm_kfx_cpuid;
+ static bool kvm_immediate_exit;
+ static hwaddr kvm_max_slot_size = ~0;
+ 
+@@ -3214,3 +3215,8 @@ static void kvm_type_init(void)
+ }
+ 
+ type_init(kvm_type_init);
++
++void qmp_kfx(uint32_t cpuid)
++{
++    kvm_kfx_cpuid = cpuid;
++}
+diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
+index 605d57287a..ef72f579a9 100644
+--- a/include/monitor/hmp.h
++++ b/include/monitor/hmp.h
+@@ -129,5 +129,6 @@ void hmp_info_replay(Monitor *mon, const QDict *qdict);
+ void hmp_replay_break(Monitor *mon, const QDict *qdict);
+ void hmp_replay_delete_break(Monitor *mon, const QDict *qdict);
+ void hmp_replay_seek(Monitor *mon, const QDict *qdict);
++void hmp_kfx(Monitor *mon, const QDict *qdict);
+ 
+ #endif
+diff --git a/include/sysemu/kvm.h b/include/sysemu/kvm.h
+index a1ab1ee12d..669b5cc9a6 100644
+--- a/include/sysemu/kvm.h
++++ b/include/sysemu/kvm.h
+@@ -547,4 +547,7 @@ bool kvm_cpu_check_are_resettable(void);
+ 
+ bool kvm_arch_cpu_check_are_resettable(void);
+ 
++extern uint32_t kvm_kfx_cpuid;
++void qmp_kfx(uint32_t cpud);
++
+ #endif
+diff --git a/linux-headers/linux/kvm.h b/linux-headers/linux/kvm.h
+index 020b62a619..8f1c4f6ffe 100644
+--- a/linux-headers/linux/kvm.h
++++ b/linux-headers/linux/kvm.h
+@@ -251,6 +251,7 @@ struct kvm_hyperv_exit {
+ #define KVM_EXIT_X86_RDMSR        29
+ #define KVM_EXIT_X86_WRMSR        30
+ #define KVM_EXIT_DIRTY_RING_FULL  31
++#define KVM_EXIT_KFX_CPUID        0x13371337
+ 
+ /* For KVM_EXIT_INTERNAL_ERROR */
+ /* Emulate instruction failed. */
+@@ -427,6 +428,10 @@ struct kvm_run {
+ 			__u32 index; /* kernel -> user */
+ 			__u64 data; /* kernel <-> user */
+ 		} msr;
++		struct {
++			__u32 cpuid;
++		} kfx;
++
+ 		/* Fix the size of the union. */
+ 		char padding[256];
+ 	};
+diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
+index 0ad5b77477..072b86caf8 100644
+--- a/monitor/hmp-cmds.c
++++ b/monitor/hmp-cmds.c
+@@ -19,6 +19,7 @@
+ #include "net/eth.h"
+ #include "chardev/char.h"
+ #include "sysemu/block-backend.h"
++#include "sysemu/kvm.h"
+ #include "sysemu/runstate.h"
+ #include "qemu/config-file.h"
+ #include "qemu/option.h"
+@@ -2226,3 +2227,10 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
+     }
+     hmp_handle_error(mon, err);
+ }
++
++void hmp_kfx(Monitor *mon, const QDict *qdict)
++{
++    uint32_t cpuid = qdict_get_int(qdict, "cpuid");
++    monitor_printf(mon, "Setting KF/x CPUID to 0x%" PRIx32 "\n", cpuid);
++    qmp_kfx(cpuid);
++}
+diff --git a/qapi/kfx.json b/qapi/kfx.json
+new file mode 100644
+index 0000000000..8c972981b5
+--- /dev/null
++++ b/qapi/kfx.json
+@@ -0,0 +1,25 @@
++# -*- Mode: Python -*-
++#
++
++##
++# = Set KF/x CPUID
++##
++
++##
++# @kfx:
++#
++# Set KF/x CPUID
++#
++# @cpuid: the CPUID to pause VM on
++#
++# Returns: Nothing on success
++#
++# Example:
++#
++# -> { "execute": "kfx",
++#     "arguments": { "cpuid": 322376504 } }
++# <- { "return": {} }
++#
++##
++{ 'command': 'kfx',
++  'data': {'cpuid': 'int'} }
+diff --git a/qapi/meson.build b/qapi/meson.build
+index 376f4ceafe..e31f157597 100644
+--- a/qapi/meson.build
++++ b/qapi/meson.build
+@@ -45,6 +45,7 @@ qapi_all_modules = [
+   'trace',
+   'transaction',
+   'yank',
++  'kfx',
+ ]
+ if have_system
+   qapi_all_modules += [
+diff --git a/qapi/qapi-schema.json b/qapi/qapi-schema.json
+index 4912b9744e..af1086fac6 100644
+--- a/qapi/qapi-schema.json
++++ b/qapi/qapi-schema.json
+@@ -93,3 +93,4 @@
+ { 'include': 'audio.json' }
+ { 'include': 'acpi.json' }
+ { 'include': 'pci.json' }
++{ 'include': 'kfx.json' }
+diff --git a/target/i386/kvm/kvm.c b/target/i386/kvm/kvm.c
+index 7fe9f52710..87285d19ce 100644
+--- a/target/i386/kvm/kvm.c
++++ b/target/i386/kvm/kvm.c
+@@ -4219,6 +4219,8 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
+ 
+         qemu_mutex_unlock_iothread();
+     }
++
++    run->kfx.cpuid = kvm_kfx_cpuid;
+ }
+ 
+ MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
+@@ -4594,6 +4596,12 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
+         ioapic_eoi_broadcast(run->eoi.vector);
+         ret = 0;
+         break;
++    case KVM_EXIT_KFX_CPUID:
++        fprintf(stderr, "KVM: KF/x CPUID caught!\n");
++        kvm_cpu_synchronize_state(cs);
++        vm_stop(RUN_STATE_PAUSED);
++        ret = 0;
++        break;
+     default:
+         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+         ret = -1;
+-- 
+2.27.0
+

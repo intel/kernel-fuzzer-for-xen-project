@@ -44,6 +44,11 @@ dmamonitor_SOURCES = src/dmamonitor.c src/vmi.c src/vmi.h src/signal.c src/signa
 dmamonitor_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
 dmamonitor_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
 
+bin_PROGRAMS += xen-transplant
+xen_transplant_SOURCES = src/xen-transplant.c
+xen_transplant_LDADD = $(LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
+xen_transplant_CFLAGS = $(CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
+
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \
              patches/0001-AFL-Xen-mode.patch \

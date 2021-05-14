@@ -248,9 +248,9 @@ bool load_regs(char *regmap, char *vmcore)
     regs->gs_limit = cpu.gs.limit;
     regs->gs_arbytes = convert_segment_arbytes(cpu.gs.flags);
 
-    regs->ss_sel = cpu.ds.selector;
-    regs->ss_base = cpu.ds.base;
-    regs->ss_limit = cpu.ds.limit;
+    regs->ss_sel = cpu.ss.selector;
+    regs->ss_base = cpu.ss.base;
+    regs->ss_limit = cpu.ss.limit;
     regs->ss_arbytes = convert_segment_arbytes(cpu.ss.flags);
 
     ret = xc_domain_hvm_setcontext(xc, domainid, buf, ctxsize) == 0;

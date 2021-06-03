@@ -172,6 +172,15 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
         cpu = NULL;
     }
 
+    cpu->cs.flags = convert_segment_arbytes(cpu->cs.flags);
+    cpu->ds.flags = convert_segment_arbytes(cpu->ds.flags);
+    cpu->es.flags = convert_segment_arbytes(cpu->es.flags);
+    cpu->ss.flags = convert_segment_arbytes(cpu->ss.flags);
+    cpu->gs.flags = convert_segment_arbytes(cpu->gs.flags);
+    cpu->fs.flags = convert_segment_arbytes(cpu->fs.flags);
+    cpu->tr.flags = convert_segment_arbytes(cpu->tr.flags);
+    cpu->idt.flags = convert_segment_arbytes(cpu->idt.flags);
+
 done:
     return cpu;
 }
@@ -234,49 +243,49 @@ CPUState *get_regs_csv(char *reg)
                     cpu->cs.selector = strtoull(line[1], NULL, 0);
                     cpu->cs.base = strtoull(line[2], NULL, 0);
                     cpu->cs.limit = strtoull(line[3], NULL, 0);
-                    cpu->cs.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->cs.flags = strtoull(line[4], NULL, 0);
                     break;
                 case DS:
                     cpu->ds.selector = strtoull(line[1], NULL, 0);
                     cpu->ds.base = strtoull(line[2], NULL, 0);
                     cpu->ds.limit = strtoull(line[3], NULL, 0);
-                    cpu->ds.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->ds.flags = strtoull(line[4], NULL, 0);
                     break;
                 case ES:
                     cpu->es.selector = strtoull(line[1], NULL, 0);
                     cpu->es.base = strtoull(line[2], NULL, 0);
                     cpu->es.limit = strtoull(line[3], NULL, 0);
-                    cpu->es.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->es.flags = strtoull(line[4], NULL, 0);
                     break;
                 case FS:
                     cpu->fs.selector = strtoull(line[1], NULL, 0);
                     cpu->fs.base = strtoull(line[2], NULL, 0);
                     cpu->fs.limit = strtoull(line[3], NULL, 0);
-                    cpu->fs.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->fs.flags = strtoull(line[4], NULL, 0);
                     break;
                 case GS:
                     cpu->gs.selector = strtoull(line[1], NULL, 0);
                     cpu->gs.base = strtoull(line[2], NULL, 0);
                     cpu->gs.limit = strtoull(line[3], NULL, 0);
-                    cpu->gs.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->gs.flags = strtoull(line[4], NULL, 0);
                     break;
                 case SS:
                     cpu->ss.selector = strtoull(line[1], NULL, 0);
                     cpu->ss.base = strtoull(line[2], NULL, 0);
                     cpu->ss.limit = strtoull(line[3], NULL, 0);
-                    cpu->ss.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->ss.flags = strtoull(line[4], NULL, 0);
                     break;
                 case LDTR:
                     cpu->ldt.selector = strtoull(line[1], NULL, 0);
                     cpu->ldt.base = strtoull(line[2], NULL, 0);
                     cpu->ldt.limit = strtoull(line[3], NULL, 0);
-                    cpu->ldt.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->ldt.flags = strtoull(line[4], NULL, 0);
                     break;
                 case TR:
                     cpu->tr.selector = strtoull(line[1], NULL, 0);
                     cpu->tr.base = strtoull(line[2], NULL, 0);
                     cpu->tr.limit = strtoull(line[3], NULL, 0);
-                    cpu->tr.flags = strtoull(line[4], NULL, 0) << 8;
+                    cpu->tr.flags = strtoull(line[4], NULL, 0);
                     break;
                 case GDTR_BASE:
                     cpu->gdt.base = strtoull(line[1], NULL, 0);
@@ -448,32 +457,32 @@ bool load_regs(char *reg, char *vmcore)
     regs->cs_sel = cpu->cs.selector;
     regs->cs_base = cpu->cs.base;
     regs->cs_limit = cpu->cs.limit;
-    regs->cs_arbytes = convert_segment_arbytes(cpu->cs.flags);
+    regs->cs_arbytes = cpu->cs.flags;
 
     regs->ds_sel = cpu->ds.selector;
     regs->ds_base = cpu->ds.base;
     regs->ds_limit = cpu->ds.limit;
-    regs->ds_arbytes = convert_segment_arbytes(cpu->ds.flags);
+    regs->ds_arbytes = cpu->ds.flags;
 
     regs->es_sel = cpu->es.selector;
     regs->es_base = cpu->es.base;
     regs->es_limit = cpu->es.limit;
-    regs->es_arbytes = convert_segment_arbytes(cpu->es.flags);
+    regs->es_arbytes = cpu->es.flags;
 
     regs->fs_sel = cpu->fs.selector;
     regs->fs_base = cpu->fs.base;
     regs->fs_limit = cpu->fs.limit;
-    regs->fs_arbytes = convert_segment_arbytes(cpu->fs.flags);
+    regs->fs_arbytes = cpu->fs.flags;
 
     regs->gs_sel = cpu->gs.selector;
     regs->gs_base = cpu->gs.base;
     regs->gs_limit = cpu->gs.limit;
-    regs->gs_arbytes = convert_segment_arbytes(cpu->gs.flags);
+    regs->gs_arbytes = cpu->gs.flags;
 
     regs->ss_sel = cpu->ss.selector;
     regs->ss_base = cpu->ss.base;
     regs->ss_limit = cpu->ss.limit;
-    regs->ss_arbytes = convert_segment_arbytes(cpu->ss.flags);
+    regs->ss_arbytes = cpu->ss.flags;
 
     ret = xc_domain_hvm_setcontext(xc, domainid, buf, ctxsize) == 0;
 

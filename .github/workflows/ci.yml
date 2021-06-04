@@ -15,7 +15,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake clang
+          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake clang ca-certificates
+          sudo update-ca-certificates
 
       - name: Setup ld
         run: |
@@ -61,7 +62,7 @@ jobs:
           cd xen
           echo CONFIG_EXPERT=y > xen/.config
           echo CONFIG_MEM_SHARING=y >> xen/.config
-          ./configure --disable-pvshim --enable-ovmf --enable-systemd
+          ./configure --disable-pvshim --enable-ovmf --enable-systemd --enable-githttp
           make -C xen olddefconfig
           make -j2 dist-xen
           make -j2 dist-tools

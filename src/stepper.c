@@ -18,7 +18,7 @@ os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
 addr_t stop_rip;
-bool loopmode, reset, stop_on_cpuid;
+bool loopmode, reset, stop_on_cpuid, stop_on_sysret;
 int interrupted;
 unsigned long limit, count;
 xc_interface *xc;
@@ -32,11 +32,12 @@ static void usage(void)
     printf("\t --limit <singlestep count>\n");
     printf("\t --loopmode\n");
     printf("\t --stop-on-cpuid\n");
+    printf("\t --stop-on-sysret\n");
     printf("\t --stop-on-address <addr>\n");
     printf("\t --reset\n");
 }
 
-void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid)
+void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid, bool *sysret)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
@@ -56,9 +57,11 @@ void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid
 
         if ( cpuid && insn[0].id == X86_INS_CPUID )
             *cpuid = true;
+        if ( sysret && insn[0].id == X86_INS_SYSRET )
+            *sysret = true;
     }
 
-    printf("%5lu: 0x%16lx  ", count, addr);
+    printf("%5lu: %16lx  ", count, addr);
 
     if ( insn_count )
     {
@@ -77,12 +80,13 @@ void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid
 event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 {
     bool cpuid = false;
+    bool sysret = false;
 
     count++;
 
-    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid);
+    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid, &sysret);
 
-    if ( count >= limit || (stop_on_cpuid && cpuid) || event->x86_regs->rip == stop_rip )
+    if ( count >= limit || (stop_on_cpuid && cpuid) || (stop_on_sysret && sysret) || event->x86_regs->rip == stop_rip )
     {
         interrupted = 1;
         vmi_pause_vm(_vmi);
@@ -103,10 +107,11 @@ int main(int argc, char** argv)
         {"loopmode", no_argument, NULL, 'l'},
         {"reset", no_argument, NULL, 'r'},
         {"stop-on-cpuid", no_argument, NULL, 's'},
+        {"stop-on-sysret", no_argument, NULL, 't'},
         {"stop-on-address", required_argument, NULL, 'S'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:L:l";
+    const char* opts = "d:L:S:hlrst";
     uint32_t domid = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
@@ -127,6 +132,9 @@ int main(int argc, char** argv)
             break;
         case 's':
             stop_on_cpuid = true;
+            break;
+        case 't':
+            stop_on_sysret = true;
             break;
         case 'S':
             stop_rip = strtoull(optarg, NULL, 0);
@@ -168,7 +176,7 @@ int main(int argc, char** argv)
     do {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
-        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL);
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL, NULL);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
 

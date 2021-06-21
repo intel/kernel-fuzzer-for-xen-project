@@ -236,6 +236,30 @@ CPUState *get_regs_csv(char *reg)
                 case RIP:
                     cpu->rip = strtoull(line[1], NULL, 0);
                     break;
+                case R8:
+                    cpu->r8 = strtoull(line[1], NULL, 0);
+                    break;
+                case R9:
+                    cpu->r9 = strtoull(line[1], NULL, 0);
+                    break;
+                case R10:
+                    cpu->r10 = strtoull(line[1], NULL, 0);
+                    break;
+                case R11:
+                    cpu->r11 = strtoull(line[1], NULL, 0);
+                    break;
+                case R12:
+                    cpu->r12 = strtoull(line[1], NULL, 0);
+                    break;
+                case R13:
+                    cpu->r13 = strtoull(line[1], NULL, 0);
+                    break;
+                case R14:
+                    cpu->r14 = strtoull(line[1], NULL, 0);
+                    break;
+                case R15:
+                    cpu->r15 = strtoull(line[1], NULL, 0);
+                    break;
                 case EFLAGS:
                     cpu->rflags = strtoull(line[1], NULL, 0);
                     break;

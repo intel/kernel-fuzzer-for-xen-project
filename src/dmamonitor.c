@@ -77,6 +77,41 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
+/*
+ * Assume kernel is built with CONFIG_FRAME_POINTER
+ */
+static void print_stacktrace(x86_registers_t *regs)
+{
+    ACCESS_CONTEXT(ctx);
+    ctx.tm = VMI_TM_PROCESS_PT;
+    ctx.pt = regs->cr3;
+
+    unsigned int stackrace_limit = STACKTRACE_LIMIT;
+    addr_t frame = regs->rbp;
+
+    if ( regs->rbp == regs->rsp )
+        frame += 8;
+
+    /* TODO: 32-bit */
+    while ( frame & (1ul<<47) )
+    {
+        addr_t next_frame = 0, ret = 0;
+
+        ctx.addr = frame;
+        vmi_read_addr(vmi, &ctx, &next_frame);
+
+        ctx.addr = frame + 8;
+        vmi_read_addr(vmi, &ctx, &ret);
+
+        if ( ret != (ret | VMI_BIT_MASK(47,63)) )
+            break;
+
+        printf("\t0x%lx\n", ret);
+
+        frame = next_frame;
+    }
+}
+
 static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     printf("DMA access! RIP: 0x%lx Mem: 0x%lx %c%c\n",
@@ -84,27 +119,8 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
            (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
 
-    /*
-     * Let's print the last X kernel-pointer looking values on the stack.
-     * Poor mans stack backtrace ¯\_(ツ)_/¯,  gdbsx does the same.
-     */
-    unsigned int stackrace_limit = STACKTRACE_LIMIT;
-    addr_t rsp = event->x86_regs->rsp;
-
-    while ( stacktrace && stackrace_limit > 0 && rsp < event->x86_regs->rsp + 0x1000 )
-    {
-        addr_t val = 0;
-        vmi_read_addr_va(vmi, rsp, 0, &val);
-
-        // TODO: 32-bit?
-        if ( val > KERNEL_64 )
-        {
-            printf("\t 0x%lx\n", val);
-            stackrace_limit--;
-        }
-
-        rsp += 8;
-    }
+    if ( stacktrace )
+        print_stacktrace(event->x86_regs);
 
     vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
     singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);

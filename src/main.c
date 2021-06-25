@@ -55,7 +55,7 @@ static bool make_fuzz_ready()
     if ( !fuzzdomid )
         return false;
 
-    if ( !setup_vmi(&vmi, NULL, fuzzdomid, NULL, true, true) )
+    if ( !setup_vmi(&vmi, NULL, fuzzdomid, json, true, true) )
     {
         fprintf(stderr, "Unable to start VMI on fuzz domain %u\n", fuzzdomid);
         return false;

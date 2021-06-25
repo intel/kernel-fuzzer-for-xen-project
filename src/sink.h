@@ -5,11 +5,14 @@
 #ifndef SINK_H
 #define SINK_H
 
+#include "sink_extra.h"
+
 struct sink {
     const char *function;
     addr_t vaddr;
     addr_t paddr;
     bool ignore;
+    struct sink_extra *extra;
 };
 
 /*
@@ -42,7 +45,7 @@ static struct sink sinks[] = {
     /*
      * Catch when KASAN starts to report an error it caught.
      */
-    { .function = "kasan_report" },
+    { .function = "kasan_report", .extra = &kasan_report_extra },
 
     /*
      * Catch when UBSAN starts to report an error it caught.

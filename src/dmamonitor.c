@@ -181,7 +181,7 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             addr_t start = event->x86_regs->rax;
 
             // Check if allocation is on a 4k page boundary, if yes we'll need to trap both 4k pages
-            if ( ((start + alloc_size - 1) >> 12) != (start >> 12) )
+            if ( ((start + alloc_size + 0xfff) >> 12) != ((start + alloc_size) >> 12) )
                 alloc_size += 0x1000;
 
             for ( size_t i = 0; i < alloc_size; i+=0x1000 )

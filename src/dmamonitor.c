@@ -27,6 +27,7 @@ int interrupted;
 unsigned long limit, count;
 page_mode_t pm;
 char *json;
+char *driver;
 
 addr_t dma_alloc_attrs, ret = 0;
 size_t alloc_size;
@@ -39,6 +40,7 @@ vmi_event_t singlestep_event;
 vmi_event_t reg_event;
 emul_insn_t emul_insn = { .dont_free = 1 };
 GSList *dma_list;
+addr_t device_driver_offset = 0, driver_name_offset = 0;
 
 bool stacktrace;
 #define STACKTRACE_LIMIT 10
@@ -50,6 +52,7 @@ static void usage(void)
     printf("\t--domain <domain name>\n");
     printf("\t--domid <domain id>\n");
     printf("\t--json <path to kernel debug json>\n");
+    printf("\t--driver <driver/module name>\n");
     printf("\t--stacktrace\n");
     printf("\t--dma <dma address>\n");
     printf("\t--alloc-only\n");
@@ -136,6 +139,7 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     if ( event->interrupt_event.gla == dma_alloc_attrs )
     {
+        bool ignore_alloc = false;
         addr_t tmp = 0;
         ACCESS_CONTEXT(ctx);
         ctx.tm = VMI_TM_PROCESS_DTB;
@@ -155,12 +159,35 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         alloc_dev = event->x86_regs->rdi;
         alloc_size = event->x86_regs->rsi;
 
-        ret = tmp;
-
-        if ( ret )
+        if ( driver )
         {
-            vmi_read_8_va(vmi, ret, 0, &ret_backup);
-            vmi_write_8_va(vmi, ret, 0, &cc);
+            addr_t dev_driver, driver_name;
+            char *name = NULL;
+
+            if ( (VMI_FAILURE != vmi_read_addr_va(vmi, alloc_dev + device_driver_offset, 0, &dev_driver)) &&
+                 (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
+                 (NULL != (name = vmi_read_str_va(vmi, driver_name, 0))) )
+            {
+                if ( strcmp(driver, name) )
+                {
+                    ignore_alloc = true;
+                }
+                free(name);
+            } else
+            {
+                fprintf(stderr, "Failed to read dev driver name. Assuming no match.\n");
+                ignore_alloc = true;
+            }
+        }
+
+        if ( tmp )
+        {
+            if ( !ignore_alloc )
+            {
+                ret = tmp;
+                vmi_read_8_va(vmi, ret, 0, &ret_backup);
+                vmi_write_8_va(vmi, ret, 0, &cc);
+            }
 
             event->interrupt_event.reinject = 0;
             event->emul_insn = &emul_insn;
@@ -237,12 +264,13 @@ int main(int argc, char** argv)
         {"domid", required_argument, NULL, 'i'},
         {"json", required_argument, NULL, 'j'},
         {"dma", required_argument, NULL, 'a'},
+        {"driver", required_argument, NULL, 'r'},
         {"stacktrace", no_argument, NULL, 's'},
         {"alloc-only", no_argument, NULL, 'o'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:a:soh";
+    const char* opts = "d:i:j:a:r:soh";
     uint32_t domid = 0;
     char *domain = NULL;
 
@@ -266,6 +294,11 @@ int main(int argc, char** argv)
         {
             addr_t addr = strtoull(optarg, NULL, 0);
             dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(addr));
+            break;
+        }
+        case 'r':
+        {
+            driver = optarg;
             break;
         }
         case 'o':
@@ -344,6 +377,16 @@ int main(int argc, char** argv)
         goto done;
 
     printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
+
+    if ( driver )
+    {
+        if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device", "driver", &device_driver_offset)) ||
+             (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )
+        {
+            fprintf(stderr, "Cannot find device driver name offsets\n");
+            goto done;
+        }
+    }
 
     setup_handlers();
 

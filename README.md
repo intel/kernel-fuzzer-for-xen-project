@@ -456,6 +456,8 @@ This allows you to use any CPUID as your start marker so you can differentiate b
 
 To also transfer extra information about the target memory and size, during the `--setup` step add `-c` so that kfx will know that extra information is transfered via the CPUID instruction. This also eliminates the need for adding any `printk`s the your target and copying it from the console. The reason why we use RSI ("S") above instead of RBX or RDX is because Xen clobbers the registers used by CPUID before we have a chance to see them (only the lower 32-bits of RAX and RCX will be visible to kfx). Feel free to place extra information into other general purpose registers as needed, you will be able to examine them by running `xen-hvmctx <domainid>`.
 
+Correspondingly, you can avoid having to pass the input address to the fuzzing step by using `--address auto`. This also extracts the address from RSI. It's currently not possible to extract input-size due to the clobbering of registers mentioned above. Although that parameter is usually stable for a given harness.
+
 You can also use software breakpoints (0xCC) as your harness which can be placed by standard debuggers like GDB. Use `--harness-type breakpoint` for this mode, which is particularly useful when you don't have access to the target's source-code to compile it with the CPUID-based harness. You will need to determine the start byte of the harness that was overwritten by the breakpoint and specify that to kfx with `--start-byte <byte>`. 
 
 

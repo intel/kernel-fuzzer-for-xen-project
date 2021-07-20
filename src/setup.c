@@ -24,6 +24,13 @@ static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
     interrupted = 1;
 }
 
+static void decode_extended_harness(const x86_registers_t *regs, const cpuid_event_t* cpuid_event, addr_t *address, size_t *size)
+{
+    *address = regs->rsi;
+    if ( cpuid_event && size )
+        *size = cpuid_event->subleaf;
+}
+
 static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     rip = event->x86_regs->rip + event->cpuid_event.insn_length;
@@ -35,8 +42,9 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         if ( extended_mark )
         {
-            addr_t buf_addr = event->x86_regs->rsi;
-            size_t buf_size = event->cpuid_event.subleaf;
+            addr_t buf_addr;
+            size_t buf_size;
+            decode_extended_harness(event->x86_regs, &event->cpuid_event, &buf_addr, &buf_size);
 
             printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
         }
@@ -47,6 +55,30 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
     event->x86_regs->rip = rip;
 
     return VMI_EVENT_RESPONSE_SET_REGISTERS;
+}
+
+static bool get_auto_address(vmi_instance_t vmi, addr_t *address)
+{
+    registers_t regs = {0};
+    uint16_t insn = 0;
+
+    if ( vmi_get_vcpuregs(vmi, &regs, 0) )
+        return false;
+
+    /* Best-effort rewind by directly comparing $(RIP-2) with CPUID opcode */
+    ACCESS_CONTEXT(ctx,
+        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .pt = regs.x86.cr3,
+        .addr = regs.x86.rip - 2,
+    );
+    if ( vmi_read_16(vmi, &ctx, &insn) )
+        return false;
+    if ( insn == 0xa20f )
+    {
+        decode_extended_harness(&regs.x86, NULL, address, NULL);
+        return true;
+    }
+    return false;
 }
 
 static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -109,7 +141,7 @@ bool make_parent_ready(void)
 {
     vmi_instance_t parent_vmi;
 
-    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false) )
+    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, auto_address ) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");
         return false;
@@ -125,9 +157,17 @@ bool make_parent_ready(void)
 
     if ( !domid )
         domid = vmi_get_vmid(parent_vmi);
+
     if ( setup )
         waitfor_start(parent_vmi);
-    else
+    else if ( auto_address )
+    {
+        parent_ready = get_auto_address(parent_vmi, &address);
+        if ( !parent_ready )
+            fprintf(stderr, "Failed to auto infer address. Was the VM setup with --extended-mark?\n");
+        else
+          printf("Auto inferred Input address 0x%lx\n", address);
+    } else
         parent_ready = true;
 
     vmi_destroy(parent_vmi);

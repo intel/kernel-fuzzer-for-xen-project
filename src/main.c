@@ -155,7 +155,7 @@ static void usage(void)
     printf("Inputs required for FUZZING step:\n");
     printf("\t  --input <path to input file> or @@ with AFL\n");
     printf("\t  --input-limit <limit input size>\n");
-    printf("\t  --address <kernel virtual address to inject input to>\n");
+    printf("\t  --address <auto> (uses extended-mark) OR <kernel virtual address to inject input to>\n");
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
     printf("\t  --json <path to kernel debug json> (needed only if default sink list is used or --sink is used)\n");
     printf("\tOptional inputs:\n");
@@ -241,7 +241,15 @@ int main(int argc, char** argv)
             input_path = optarg;
             break;
         case 'a':
-            address = strtoull(optarg, NULL, 0);
+            if ( !strcmp(optarg, "auto") )
+            {
+                address = 0;
+                auto_address = true;
+            } else
+            {
+                address = strtoull(optarg, NULL, 0);
+                auto_address = false;
+            }
             break;
         case 'l':
             limit = strtoull(optarg, NULL, 0);
@@ -325,7 +333,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || (!address && !setup) || (!setup && ((!json && !sink_list) || !input_path || !input_limit)) )
+    if ( (!domain && !domid) || (!address && !auto_address && !setup) || (!setup && ((!json && !sink_list) || !input_path || !input_limit)) )
     {
         usage();
         return -1;

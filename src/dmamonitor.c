@@ -96,7 +96,7 @@ static void print_stacktrace(x86_registers_t *regs)
         frame += 8;
 
     /* TODO: 32-bit */
-    while ( frame & (1ul<<47) )
+    while ( ( frame & (1ul<<47) ) && stackrace_limit )
     {
         addr_t next_frame = 0, ret = 0;
 
@@ -112,6 +112,7 @@ static void print_stacktrace(x86_registers_t *regs)
         printf("\t0x%lx\n", ret);
 
         frame = next_frame;
+        stackrace_limit --;
     }
 }
 

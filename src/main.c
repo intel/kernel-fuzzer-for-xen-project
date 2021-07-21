@@ -154,11 +154,12 @@ static void usage(void)
     printf("\n\n");
     printf("Inputs required for FUZZING step:\n");
     printf("\t  --input <path to input file> or @@ with AFL\n");
-    printf("\t  --input-limit <limit input size>\n");
-    printf("\t  --address <auto> (uses extended-mark) OR <kernel virtual address to inject input to>\n");
+    printf("\t  --input-limit <limit input size> (XOR --extended-mark)\n");
+    printf("\t  --address <kernel virtual address to inject input to> (XOR --extended-mark)\n");
     printf("\t  --domain <domain name> OR --domid <domain id>\n");
     printf("\t  --json <path to kernel debug json> (needed only if default sink list is used or --sink is used)\n");
     printf("\tOptional inputs:\n");
+    printf("\t  --extended-mark (Use start harness to obtain target address & size)\n");
     printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
     printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
     printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
@@ -218,7 +219,8 @@ int main(int argc, char** argv)
     bool keep = false;
     bool default_magic_mark = true;
 
-    magic_mark = 0x13371337;
+    address = 0;
+    magic_mark = 0;
     harness_cpuid = true;
     input_path = NULL;
     input_size = 0;
@@ -241,15 +243,7 @@ int main(int argc, char** argv)
             input_path = optarg;
             break;
         case 'a':
-            if ( !strcmp(optarg, "auto") )
-            {
-                address = 0;
-                auto_address = true;
-            } else
-            {
-                address = strtoull(optarg, NULL, 0);
-                auto_address = false;
-            }
+            address = strtoull(optarg, NULL, 0);
             break;
         case 'l':
             limit = strtoull(optarg, NULL, 0);
@@ -333,7 +327,8 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || (!address && !auto_address && !setup) || (!setup && ((!json && !sink_list) || !input_path || !input_limit)) )
+    if ( (!domain && !domid) || ((!address == !extended_mark) && !setup) || (!setup && ((!json && !sink_list)
+            || !input_path || (!input_limit == !extended_mark))) )
     {
         usage();
         return -1;
@@ -349,7 +344,9 @@ int main(int argc, char** argv)
 
         if ( default_magic_mark )
             magic_mark = 0;
-    }
+    } else if ( default_magic_mark && setup )
+        magic_mark = 0x13371337;
+
 
     if ( logfile )
     {

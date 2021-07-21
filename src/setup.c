@@ -10,6 +10,7 @@ extern bool extended_mark;
 extern unsigned int magic_mark;
 
 static vmi_event_t cpuid_event, cc_event;
+static const uint64_t extended_mark_cookie = 0xa20fa20f;
 
 static addr_t rip;
 
@@ -24,11 +25,25 @@ static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
     interrupted = 1;
 }
 
-static void decode_extended_harness(const x86_registers_t *regs, const cpuid_event_t* cpuid_event, addr_t *address, size_t *size)
+static void stash_extended_mark(vmi_instance_t vmi, unsigned long vcpu, addr_t addr, size_t size)
 {
-    *address = regs->rsi;
-    if ( cpuid_event && size )
-        *size = cpuid_event->subleaf;
+    vmi_set_vcpureg(vmi, (extended_mark_cookie << 32) | magic_mark, RAX, vcpu);
+    vmi_set_vcpureg(vmi, addr, RSI, vcpu);
+    vmi_set_vcpureg(vmi, size, RCX, vcpu);
+}
+
+static bool pop_extended_mark(vmi_instance_t vmi, unsigned long vcpu, addr_t *addr, size_t *size)
+{
+    registers_t regs;
+    if ( vmi_get_vcpuregs(vmi, &regs, vcpu) )
+        return false;
+    if ( (regs.x86.rax >> 32) != extended_mark_cookie )
+        return false;
+    if ( magic_mark && ((regs.x86.rax & 0xffffffff) != magic_mark) )
+        return false;
+    *addr = regs.x86.rsi;
+    *size = regs.x86.rcx;
+    return true;
 }
 
 static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -42,9 +57,9 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         if ( extended_mark )
         {
-            addr_t buf_addr;
-            size_t buf_size;
-            decode_extended_harness(event->x86_regs, &event->cpuid_event, &buf_addr, &buf_size);
+            addr_t buf_addr = event->x86_regs->rsi;
+            size_t buf_size = event->cpuid_event.subleaf;
+            stash_extended_mark(vmi, event->vcpu_id, buf_addr, buf_size);
 
             printf("Target buffer & size: 0x%lx %lu\n", buf_addr, buf_size);
         }
@@ -55,30 +70,6 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
     event->x86_regs->rip = rip;
 
     return VMI_EVENT_RESPONSE_SET_REGISTERS;
-}
-
-static bool get_auto_address(vmi_instance_t vmi, addr_t *address)
-{
-    registers_t regs = {0};
-    uint16_t insn = 0;
-
-    if ( vmi_get_vcpuregs(vmi, &regs, 0) )
-        return false;
-
-    /* Best-effort rewind by directly comparing $(RIP-2) with CPUID opcode */
-    ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .pt = regs.x86.cr3,
-        .addr = regs.x86.rip - 2,
-    );
-    if ( vmi_read_16(vmi, &ctx, &insn) )
-        return false;
-    if ( insn == 0xa20f )
-    {
-        decode_extended_harness(&regs.x86, NULL, address, NULL);
-        return true;
-    }
-    return false;
 }
 
 static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -141,7 +132,7 @@ bool make_parent_ready(void)
 {
     vmi_instance_t parent_vmi;
 
-    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, auto_address ) )
+    if ( !setup_vmi(&parent_vmi, domain, domid, NULL, setup, false) )
     {
         fprintf(stderr, "Unable to start VMI on domain\n");
         return false;
@@ -160,13 +151,13 @@ bool make_parent_ready(void)
 
     if ( setup )
         waitfor_start(parent_vmi);
-    else if ( auto_address )
+    else if ( extended_mark )
     {
-        parent_ready = get_auto_address(parent_vmi, &address);
+        parent_ready = pop_extended_mark(parent_vmi, 0, &address, &input_limit);
         if ( !parent_ready )
-            fprintf(stderr, "Failed to auto infer address. Was the VM setup with --extended-mark?\n");
+            fprintf(stderr, "Failed to infer input address and limit. Was the VM setup with --extended-mark?\n");
         else
-          printf("Auto inferred Input address 0x%lx\n", address);
+          printf("Auto inferred Input address=0x%lx, input-limit=%zu\n", address, input_limit);
     } else
         parent_ready = true;
 

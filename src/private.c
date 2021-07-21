@@ -21,7 +21,6 @@ bool debug;
 bool loopmode;
 bool nocov;
 bool ptcov;
-bool auto_address;
 addr_t address;
 unsigned long limit;
 const char* record_codecov;

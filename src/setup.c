@@ -9,9 +9,9 @@ extern bool parent_ready;
 extern bool extended_mark;
 extern unsigned int magic_mark;
 
-static vmi_event_t cpuid_event, cc_event;
-static const uint64_t extended_mark_cookie = 0xa20fa20f;
+#define extended_mark_cookie (UINT64_C(0x13371337) << 32)
 
+static vmi_event_t cpuid_event, cc_event;
 static addr_t rip;
 
 static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
@@ -27,7 +27,7 @@ static void cpuid_done(vmi_instance_t vmi, vmi_event_t *event)
 
 static void stash_extended_mark(vmi_instance_t vmi, unsigned long vcpu, addr_t addr, size_t size)
 {
-    vmi_set_vcpureg(vmi, (extended_mark_cookie << 32) | magic_mark, RAX, vcpu);
+    vmi_set_vcpureg(vmi, extended_mark_cookie | magic_mark, RAX, vcpu);
     vmi_set_vcpureg(vmi, addr, RSI, vcpu);
     vmi_set_vcpureg(vmi, size, RCX, vcpu);
 }
@@ -37,7 +37,7 @@ static bool pop_extended_mark(vmi_instance_t vmi, unsigned long vcpu, addr_t *ad
     registers_t regs;
     if ( vmi_get_vcpuregs(vmi, &regs, vcpu) )
         return false;
-    if ( (regs.x86.rax >> 32) != extended_mark_cookie )
+    if ( (regs.x86.rax & 0xffffffff00000000) != extended_mark_cookie )
         return false;
     if ( magic_mark && ((regs.x86.rax & 0xffffffff) != magic_mark) )
         return false;

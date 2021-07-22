@@ -140,6 +140,31 @@ static bool fuzz(void)
     return ret;
 }
 
+static bool validate_flags()
+{
+    if ( !domain && !domid )
+    {
+        fprintf(stderr, "Must specify --domain OR --domid of parent VM\n");
+        return false;
+    }
+    if ( !setup && ((!address == !extended_mark) || (!input_limit == !extended_mark)) )
+    {
+        fprintf(stderr, "Must exclusively specify either (--address AND --input-limit) of target buffer OR --extended-mark\n");
+        return false;
+    }
+    if ( !setup && !input_path )
+    {
+        fprintf(stderr, "Must specify --input path of taget buffer\n");
+        return false;
+    }
+    if ( !setup && !json && !sink_list )
+    {
+        fprintf(stderr, "Must specify either kernel sym --json OR --sink-vaddr/--sink-paddr per sink\n");
+        return false;
+    }
+    return true;
+}
+
 static void usage(void)
 {
     printf("Inputs required for SETUP step:\n");
@@ -327,8 +352,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domain && !domid) || ((!address == !extended_mark) && !setup) || (!setup && ((!json && !sink_list)
-            || !input_path || (!input_limit == !extended_mark))) )
+    if ( !validate_flags() )
     {
         usage();
         return -1;

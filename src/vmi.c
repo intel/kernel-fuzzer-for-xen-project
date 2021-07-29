@@ -28,6 +28,7 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bo
     {
         if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
         {
+            fprintf(stderr, "Error in vmi_init_os!\n");
             vmi_destroy(*vmi);
             return false;
         }
@@ -37,6 +38,7 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bo
     else
     if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )
     {
+        fprintf(stderr, "Error in vmi_init_paging!\n");
         vmi_destroy(*vmi);
         return false;
     }
@@ -44,6 +46,7 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, bo
     registers_t regs = {0};
     if ( VMI_FAILURE == vmi_get_vcpuregs(*vmi, &regs, 0) )
     {
+        fprintf(stderr, "Error in vmi_get_vcpuregs!\n");
         vmi_destroy(*vmi);
         return false;
     }

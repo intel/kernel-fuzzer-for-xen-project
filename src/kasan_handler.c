@@ -5,7 +5,7 @@
 #include "private.h"
 #include "sink.h"
 
-struct kasan_report_extra_data {
+struct kasan_report_handler_data {
     emul_insn_t emul_insn;
     addr_t internal_addr;
     addr_t internal_offset;
@@ -20,14 +20,14 @@ bool kasan_report_init(vmi_instance_t vmi, struct sink *s)
 {
     addr_t vaddr, offset, ksalr;
 
-    if ( s->extra->data )
+    if ( s->handler->data )
     {
         printf("Initialized the kasan_report twice\n");
         return false;
     }
 
-    struct kasan_report_extra_data *data = malloc(sizeof(struct kasan_report_extra_data));
-    s->extra->data = data;
+    struct kasan_report_handler_data *data = malloc(sizeof(struct kasan_report_handler_data));
+    s->handler->data = data;
 
     data->emul_insn.dont_free = 1;
     if ( VMI_FAILURE == vmi_read_pa(vmi, s->paddr, 15, &data->emul_insn.data, NULL) )
@@ -59,7 +59,7 @@ bool kasan_report_init(vmi_instance_t vmi, struct sink *s)
 
 sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event_response_t *rsp, struct sink *s)
 {
-    struct kasan_report_extra_data *data = s->extra->data;
+    struct kasan_report_handler_data *data = s->handler->data;
     addr_t current_task;
     unsigned int kasan_depth;
     reg_t base;
@@ -88,13 +88,17 @@ sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event
         event->interrupt_event.reinject = 0;
         event->emul_insn = &data->emul_insn;
         *rsp = VMI_EVENT_RESPONSE_EMULATE | VMI_EVENT_RESPONSE_SET_EMUL_INSN;
+
+        if ( VMI_EVENT_SINGLESTEP == event->type )
+            *rsp |= VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+
         return CONTINUE;
     }
 
     return REPORT_CRASH;
 }
 
-struct sink_extra kasan_report_extra = {
-    .sink_init = kasan_report_init,
+struct sink_handler kasan_report_handler = {
+    .init = kasan_report_init,
     .cb = kasan_report_cb,
 };

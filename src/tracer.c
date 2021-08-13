@@ -162,10 +162,20 @@ static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response
 
         if ( s->paddr && s->paddr == rip_pa )
         {
+            sink_cb_response_t action = s->ignore ? IGNORE : REPORT_CRASH;
+            if ( s->extra )
+            {
+                action = s->extra->cb(vmi, event, ret, s);
+                if ( action == CONTINUE )
+                {
+                    return true;
+                }
+            }
+
             vmi_pause_vm(vmi);
             interrupted = 1;
 
-            if ( !s->ignore )
+            if ( action == REPORT_CRASH )
                 crash = 1;
 
             if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Crash: %i.\n", s->function, tracer_counter, crash);
@@ -591,6 +601,14 @@ bool make_sink_ready(void)
         {
             if ( debug ) printf("No physical address is defined for a sink! %s 0x%lx\n", s->function, s->vaddr);
             goto done;
+        }
+
+        if ( s->extra )
+        {
+            if ( !s->extra->sink_init(sink_vmi, s) )
+            {
+                if ( debug ) printf("Failed to init for a sink! %s\n", s->function);
+            }
         }
 
         if ( VMI_FAILURE == vmi_write_pa(sink_vmi, s->paddr, 1, &cc, NULL) )

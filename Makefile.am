@@ -8,8 +8,8 @@ kfx_SOURCES = src/main.c \
               src/tracer.c src/tracer.h \
               src/forkvm.c src/forkvm.h \
               src/ptcov.c src/ptcov.h \
-              src/sink_kasan.c \
-              src/sink.h src/sink_extra.h
+              src/kasan_handler.c \
+              src/sink.h src/sink_handler.h
 
 kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(XENFMEM_LIBS) $(GLIB_LIBS)
 kfx_CFLAGS  = -Wall -Wextra -fstack-protector -Wno-override-init -Wno-unused-variable \

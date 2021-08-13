@@ -5,13 +5,13 @@
 #ifndef SINK_H
 #define SINK_H
 
-#include "sink_extra.h"
+#include "sink_handler.h"
 
 struct sink {
     const char *function;
     addr_t vaddr;
     addr_t paddr;
-    struct sink_extra *extra;
+    struct sink_handler *handler;
 };
 
 /*
@@ -43,11 +43,11 @@ static struct sink sinks[] = {
 
     /*
      * Catch when KASAN starts to report an error it caught.
-     * Demonstrate using the sink_extra extension. A callback is issued to a
+     * Demonstrate using the sink_handler extension. A callback is issued to a
      * pre-defined function when the sink is triggered that will determine how to
-     * handle the sink. See sink_extra.h for more information.
+     * handle the sink. See sink_handler.h for more information.
      */
-    { .function = "kasan_report", .extra = &kasan_report_extra },
+    { .function = "kasan_report", .handler = &kasan_report_handler },
 
     /*
      * Catch when UBSAN starts to report an error it caught.

@@ -164,8 +164,8 @@ static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response
         {
             sink_cb_response_t action = REPORT_CRASH;
 
-            if ( s->extra )
-                action = s->extra->cb(vmi, event, ret, s);
+            if ( s->handler )
+                action = s->handler->cb(vmi, event, ret, s);
 
             if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Action: %i.\n", s->function, tracer_counter, action);
 
@@ -606,7 +606,7 @@ bool make_sink_ready(void)
             goto done;
         }
 
-        if ( s->extra && !s->extra->init(sink_vmi, s) )
+        if ( s->handler && !s->handler->init(sink_vmi, s) )
         {
             if ( debug ) printf("Failed to init for a sink! %s\n", s->function);
             continue;

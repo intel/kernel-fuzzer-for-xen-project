@@ -2,8 +2,8 @@
  * Copyright (C) 2021 Intel Corporation
  * SPDX-License-Identifier: MIT
  */
-#ifndef SINK_EXTRA_H
-#define SINK_EXTRA_H
+#ifndef SINK_HANDLER_H
+#define SINK_HANDLER_H
 
 struct sink;
 
@@ -19,12 +19,12 @@ typedef enum sink_callback_response {
      CONTINUE,
 } sink_cb_response_t;
 
-struct sink_extra {
+struct sink_handler {
     bool (*init)(vmi_instance_t vmi, struct sink *s);
     sink_cb_response_t (*cb)(vmi_instance_t vmi, vmi_event_t *event, event_response_t *rsp, struct sink *s);
     void *data;
 };
 
-extern struct sink_extra kasan_report_extra;
+extern struct sink_handler kasan_report_handler;
 
 #endif

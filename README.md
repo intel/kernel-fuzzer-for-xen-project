@@ -1,17 +1,17 @@
-# VMI Kernel Fuzzer for Xen Project*
+# Kernel Fuzzer for Xen Project (KF/x)*
 
-This project is intended to illustrate the harnessing required to fuzz a Linux kernel module using AFL through the Xen VMI API. The tool utilizes Xen VM forks to perform the fuzzing, thus
-allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. Coverage guidance for AFL is achieved using Capstone to dynamically disassemble the target code to locate
-the next control-flow instruction. The instruction is breakpointed and when the breakpoint triggers, MTF is activated to advance the VM ahead, then the processes is repeated again. The
-tool allows fine-tuning how many control-flow instructions to allow the fuzzing to encounter before terminating. This provides an alternative to timing out the fuzzing process.
+Hypervisor-based fuzzing using Xen and AFL. The tool utilizes Xen VM forks to perform the fuzzing, thus
+allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. Coverage guidance for 
+AFL is achieved using Intel&reg; Processor Trace or breakpoints.
 
-Hardware requirements: Intel CPU with VT-x and EPT enabled.
+Minimum hardware requirements: Intel CPU with VT-x and EPT enabled.
 
 This project is licensed under the terms of the MIT license
 
-# Demo
+# Presentations
 
-![](demo.gif)
+[![OSSummit2020](ossummit.png)](https://www.youtube.com/watch?v=3MYo8ctD_aU)
+[![DEFCON29](defcon.png)](https://www.youtube.com/watch?v=_dXC_I2ybr4)
 
 # Capability & Limitations
 

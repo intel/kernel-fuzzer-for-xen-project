@@ -162,23 +162,26 @@ static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response
 
         if ( s->paddr && s->paddr == rip_pa )
         {
-            sink_cb_response_t action = s->ignore ? IGNORE : REPORT_CRASH;
+            sink_cb_response_t action = REPORT_CRASH;
+
             if ( s->extra )
-            {
                 action = s->extra->cb(vmi, event, ret, s);
-                if ( action == CONTINUE )
-                {
+
+            if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Action: %i.\n", s->function, tracer_counter, action);
+
+            switch (action) {
+                case REPORT_CRASH:
+                    crash = 1;
+                    vmi_pause_vm(vmi);
+                    interrupted = 1;
+                    break;
+                case IGNORE:
+                    vmi_pause_vm(vmi);
+                    interrupted = 1;
+                    break;
+                case CONTINUE:
                     return true;
-                }
             }
-
-            vmi_pause_vm(vmi);
-            interrupted = 1;
-
-            if ( action == REPORT_CRASH )
-                crash = 1;
-
-            if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Crash: %i.\n", s->function, tracer_counter, crash);
 
             if ( VMI_EVENT_INTERRUPT == event->type )
                 event->interrupt_event.reinject = 0;
@@ -603,12 +606,10 @@ bool make_sink_ready(void)
             goto done;
         }
 
-        if ( s->extra )
+        if ( s->extra && !s->extra->init(sink_vmi, s) )
         {
-            if ( !s->extra->sink_init(sink_vmi, s) )
-            {
-                if ( debug ) printf("Failed to init for a sink! %s\n", s->function);
-            }
+            if ( debug ) printf("Failed to init for a sink! %s\n", s->function);
+            continue;
         }
 
         if ( VMI_FAILURE == vmi_write_pa(sink_vmi, s->paddr, 1, &cc, NULL) )

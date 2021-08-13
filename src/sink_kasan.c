@@ -88,6 +88,10 @@ sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event
         event->interrupt_event.reinject = 0;
         event->emul_insn = &data->emul_insn;
         *rsp = VMI_EVENT_RESPONSE_EMULATE | VMI_EVENT_RESPONSE_SET_EMUL_INSN;
+
+        if ( VMI_EVENT_SINGLESTEP == event->type )
+            *rsp |= VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+
         return CONTINUE;
     }
 
@@ -95,6 +99,6 @@ sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event
 }
 
 struct sink_extra kasan_report_extra = {
-    .sink_init = kasan_report_init,
+    .init = kasan_report_init,
     .cb = kasan_report_cb,
 };

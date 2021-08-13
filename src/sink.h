@@ -11,7 +11,6 @@ struct sink {
     const char *function;
     addr_t vaddr;
     addr_t paddr;
-    bool ignore;
     struct sink_extra *extra;
 };
 
@@ -44,6 +43,9 @@ static struct sink sinks[] = {
 
     /*
      * Catch when KASAN starts to report an error it caught.
+     * Demonstrate using the sink_extra extension. A callback is issued to a
+     * pre-defined function when the sink is triggered that will determine how to
+     * handle the sink. See sink_extra.h for more information.
      */
     { .function = "kasan_report", .extra = &kasan_report_extra },
 
@@ -65,13 +67,6 @@ static struct sink sinks[] = {
      * that are listed in here.
      */
     //{ .function = "custom sink", .vaddr = 0xffffffdeadbeef },
-
-    /*
-     * You can define sink points to stop fuzzing at when reached without reporting
-     * a crash. This is useful to close down loose paths that slow down the fuzzing
-     * without having to recompile the target with an endharness in place.
-     */
-    //{ .function = "printk", .ignore = 1 },
 };
 
 #endif

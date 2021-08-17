@@ -107,6 +107,11 @@ for reg in ${regs[@]}; do
     base=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $6 }')
     limit=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $9 }')
     attr=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $12 }')
+
+    # The Simics segment attributes are in VT-x representation but shifted right by 8
+    # Convert to Xen representation
+    attr=$(( $(($attr & 0xff)) | $(( $(($attr & 0xf000)) >> 4)) ))
+
     echo "$reg,$selector,$base,$limit,$attr" >> regs.csv
 done
 

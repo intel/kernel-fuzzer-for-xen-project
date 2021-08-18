@@ -26,8 +26,8 @@ AC_CHECK_FILES([libxdc/libxdc.h libxdc/src/decoder.c], [static_libxdc=yes], [sta
 AM_CONDITIONAL([STATIC_LIBXDC], [test x"$static_libxdc" = "xyes"])
 # Check if its installed and then just link dynamically
 AS_IF([test x"$static_libxdc" = x"yes"], [], [
-    AC_CHECK_HEADERS([libxdc.h], [], [AC_MSG_ERROR(libxdc not found. Check out git submodule or install dynamically.)]),
-    AC_CHECK_LIB(xdc, [libxdc_init], [], [AC_MSG_ERROR(libxdc not found. Check out git submodule or install dynamically.)]),
+    AC_CHECK_HEADERS([libxdc.h], [], [AC_MSG_ERROR(libxdc not found. Check out git submodule or install dynamically.)])
+    AC_CHECK_LIB(xdc, [libxdc_init], [], [AC_MSG_ERROR(libxdc not found. Check out git submodule or install dynamically.)])
     ])
 
 AC_CONFIG_FILES(Makefile)

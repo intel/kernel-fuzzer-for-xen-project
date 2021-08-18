@@ -112,28 +112,26 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
 {
     /* Read in the register map */
     CPUState *cpu = NULL;
+    FILE *vmcoref = NULL;
+    char *mapline = NULL;
+    gchar **regmapline = NULL;
+
     FILE *regmapf = fopen(regmap, "r");
     if ( !regmapf )
         goto done;
 
-    char *mapline = NULL;
     size_t len;
     size_t read = getline(&mapline, &len, regmapf);
-
-    fclose(regmapf);
-
     if ( read == -1 )
         goto done;
 
-    gchar **regmapline = g_strsplit(mapline, " ", 2);
-    free(mapline);
+    regmapline = g_strsplit(mapline, " ", 2);
 
     if ( !regmapline )
         goto done;
 
     uint64_t foffset = strtoull(regmapline[0], NULL, 16);
     size_t size = strtoull(regmapline[1], NULL, 16);
-    g_strfreev(regmapline);
 
     if ( size % sizeof(CPUState) )
     {
@@ -141,22 +139,18 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
         goto done;
     }
 
-    FILE *vmcoref = fopen(vmcore, "r");
+    vmcoref = fopen(vmcore, "r");
     if ( !vmcoref )
         goto done;
 
     if (fseek(vmcoref, foffset, SEEK_SET) != 0)
-    {
-        fclose(vmcoref);
         goto done;
-    }
 
     cpu = g_malloc0(sizeof(CPUState));
     if ( !cpu )
         goto done;
 
     read = fread(cpu, sizeof(unsigned char), sizeof(CPUState), vmcoref);
-    fclose(vmcoref);
 
     if ( read == -1 )
     {
@@ -170,6 +164,7 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
         printf("Recorded CPUState is not correct version or size: %u %u\n", cpu->version, cpu->size);
         g_free(cpu);
         cpu = NULL;
+        goto done;
     }
 
     cpu->cs.flags = convert_segment_arbytes(cpu->cs.flags);
@@ -182,6 +177,15 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
     cpu->idt.flags = convert_segment_arbytes(cpu->idt.flags);
 
 done:
+    if ( vmcoref )
+        fclose(vmcoref);
+    if ( regmapf )
+        fclose(regmapf);
+    if ( mapline )
+        free(mapline);
+    if ( regmapline )
+        g_strfreev(regmapline);
+
     return cpu;
 }
 

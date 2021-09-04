@@ -35,6 +35,11 @@ rwmem_SOURCES = src/rwmem.c src/vmi.c src/vmi.h
 rwmem_LDADD = $(LIBS) $(VMI_LIBS)
 rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
 
+bin_PROGRAMS +=  getregs
+getregs_SOURCES = src/getregs.c src/vmi.c src/vmi.h
+getregs_LDADD = $(LIBS) $(VMI_LIBS)
+getregs_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
+
 bin_PROGRAMS += stepper
 stepper_SOURCES = src/stepper.c src/vmi.c src/vmi.h src/signal.c src/signal.h
 stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)

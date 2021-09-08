@@ -18,7 +18,7 @@ os_t os;
 addr_t target_pagetable;
 addr_t start_rip;
 addr_t stop_rip;
-bool loopmode, reset, stop_on_cpuid, stop_on_sysret;
+bool loopmode, reset, stop_on_cpuid, stop_on_sysret, stop_on_breakpoint;
 int interrupted;
 unsigned long limit, count;
 xc_interface *xc;
@@ -33,11 +33,12 @@ static void usage(void)
     printf("\t --loopmode\n");
     printf("\t --stop-on-cpuid\n");
     printf("\t --stop-on-sysret\n");
+    printf("\t --stop-on-breakpoint\n");
     printf("\t --stop-on-address <addr>\n");
     printf("\t --reset\n");
 }
 
-void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid, bool *sysret)
+void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid, bool *sysret, bool *breakpoint)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
@@ -52,14 +53,7 @@ void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid
     vmi_read(_vmi, &ctx, 15, buf, &read);
 
     if ( read )
-    {
         insn_count = cs_disasm(cs_handle, buf, read, cr3, 0, &insn);
-
-        if ( cpuid && insn[0].id == X86_INS_CPUID )
-            *cpuid = true;
-        if ( sysret && insn[0].id == X86_INS_SYSRET )
-            *sysret = true;
-    }
 
     printf("%5lu: %16lx  ", count, addr);
 
@@ -68,25 +62,32 @@ void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid
         gchar *str = g_strconcat(insn[0].mnemonic, " ", insn[0].op_str, NULL);
         printf("%-40s\t", str);
         g_free(str);
+
+        if ( cpuid && insn[0].id == X86_INS_CPUID )
+            *cpuid = true;
+        if ( sysret && insn[0].id == X86_INS_SYSRET )
+            *sysret = true;
+        if ( breakpoint && insn[0].id == X86_INS_INT3 )
+            *breakpoint = true;
+
+        cs_free(insn, insn_count);
     } else
         printf("%-40s\t", "-");
 
     vmi_print_hex(buf, read);
-
-    if ( insn_count )
-        cs_free(insn, insn_count);
 }
 
 event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 {
     bool cpuid = false;
     bool sysret = false;
+    bool breakpoint = false;
 
     count++;
 
-    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid, &sysret);
+    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid, &sysret, &breakpoint);
 
-    if ( count >= limit || (stop_on_cpuid && cpuid) || (stop_on_sysret && sysret) || event->x86_regs->rip == stop_rip )
+    if ( count >= limit || (stop_on_cpuid && cpuid) || (stop_on_sysret && sysret) || (stop_on_breakpoint && breakpoint) || event->x86_regs->rip == stop_rip )
     {
         interrupted = 1;
         vmi_pause_vm(_vmi);
@@ -108,10 +109,11 @@ int main(int argc, char** argv)
         {"reset", no_argument, NULL, 'r'},
         {"stop-on-cpuid", no_argument, NULL, 's'},
         {"stop-on-sysret", no_argument, NULL, 't'},
+        {"stop-on-breakpoint", no_argument, NULL, 'b'},
         {"stop-on-address", required_argument, NULL, 'S'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:L:S:hlrst";
+    const char* opts = "d:L:S:hlrstb";
     uint32_t domid = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
@@ -135,6 +137,9 @@ int main(int argc, char** argv)
             break;
         case 't':
             stop_on_sysret = true;
+            break;
+        case 'b':
+            stop_on_breakpoint = true;
             break;
         case 'S':
             stop_rip = strtoull(optarg, NULL, 0);
@@ -176,7 +181,7 @@ int main(int argc, char** argv)
     do {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
-        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL, NULL);
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL, NULL, NULL);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);
 

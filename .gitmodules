@@ -5,7 +5,7 @@
 	shallow = true
 [submodule "xen"]
 	path = xen
-	url = http://xenbits.xen.org/git-http/people/tklengyel/xen.git
+	url = https://github.com/xen-project/xen
 	ignore = dirty
 	shallow = true
 [submodule "dwarf2json"]

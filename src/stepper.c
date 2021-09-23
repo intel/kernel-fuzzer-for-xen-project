@@ -40,12 +40,13 @@ static void usage(void)
     printf("\t --print-regs\n");
 }
 
-static void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool *cpuid, bool *sysret, bool *breakpoint)
+static bool print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr)
 {
     unsigned char buf[15] = {0};
     cs_insn *insn = NULL;
     size_t read = 0, insn_count = 0;
     const char *format = print_hex ? "%-40s\t" : "%s\n";
+    bool stop = false;
 
     ACCESS_CONTEXT(ctx,
         .translate_mechanism = VMI_TM_PROCESS_DTB,
@@ -67,12 +68,14 @@ static void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool
         printf(format, str);
         g_free(str);
 
-        if ( cpuid && insn[0].id == X86_INS_CPUID )
-            *cpuid = true;
-        if ( sysret && insn[0].id == X86_INS_SYSRET )
-            *sysret = true;
-        if ( breakpoint && insn[0].id == X86_INS_INT3 )
-            *breakpoint = true;
+        if ( stop_on_cpuid && insn[0].id == X86_INS_CPUID )
+            stop = true;
+        else if ( stop_on_sysret && insn[0].id == X86_INS_SYSRET )
+            stop = true;
+        else if ( stop_on_breakpoint && insn[0].id == X86_INS_INT3 )
+            stop = true;
+        else if ( insn[0].id == X86_INS_HLT )
+            stop = true;
 
         cs_free(insn, insn_count);
     } else
@@ -80,6 +83,8 @@ static void print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr, bool
 
     if ( print_hex )
         vmi_print_hex(buf, read);
+
+    return stop;
 }
 
 static void print_registers(x86_registers_t *regs)
@@ -107,10 +112,10 @@ static event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 
     count++;
 
-    print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip, &cpuid, &sysret, &breakpoint);
+    bool stop = print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip);
     print_registers(event->x86_regs);
 
-    if ( count >= limit || (stop_on_cpuid && cpuid) || (stop_on_sysret && sysret) || (stop_on_breakpoint && breakpoint) || event->x86_regs->rip == stop_rip )
+    if ( stop || count >= limit || event->x86_regs->rip == stop_rip )
     {
         interrupted = 1;
         vmi_pause_vm(_vmi);
@@ -212,7 +217,7 @@ int main(int argc, char** argv)
     do {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
-        print_instruction(vmi, regs.x86.cr3, regs.x86.rip, NULL, NULL, NULL);
+        print_instruction(vmi, regs.x86.cr3, regs.x86.rip);
         print_registers(&regs.x86);
 
         vmi_toggle_single_step_vcpu(vmi, &singlestep_event, 0, 1);

@@ -27,24 +27,29 @@ int interrupted;
 unsigned long limit, count;
 page_mode_t pm;
 char *json;
-char *driver;
+char *driver_filter;
 
-addr_t dma_alloc_attrs, ret = 0;
+bool stacktrace;
+
+addr_t kfx_dma_log;
+addr_t dma_alloc_attrs, dma_alloc_attrs_ret;
+uint8_t dma_alloc_attrs_ret_backup;
+
 size_t alloc_size;
 addr_t alloc_dev;
+char* alloc_dev_name;
 bool alloc_only;
-uint8_t cc = 0xCC, ret_backup;
+
+uint8_t cc = 0xCC, ret = 0xC3, nop = 0x90;
 vmi_event_t interrupt_event;
 vmi_event_t mem_event;
 vmi_event_t singlestep_event;
 vmi_event_t reg_event;
 emul_insn_t emul_insn = { .dont_free = 1 };
-GSList *dma_list;
+
 addr_t device_driver_offset = 0, driver_name_offset = 0;
 
-bool stacktrace;
-#define STACKTRACE_LIMIT 10
-#define KERNEL_64 0xffffffff80000000ULL
+GHashTable *dma_tracker;
 
 static void usage(void)
 {
@@ -60,18 +65,56 @@ static void usage(void)
 
 static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_mem_access_t access)
 {
-    addr_t gfn;
-    vmi_pagetable_lookup(vmi, cr3, dma, &gfn);
-    gfn >>= 12;
+    if ( cr3 )
+    {
+        addr_t gfn = 0;
+        if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, dma, &gfn) )
+            return;
 
-    if ( VMI_SUCCESS == vmi_set_mem_event(vmi, gfn, access, 0) )
-        printf("EPT permissions changed for page at 0x%lx\n", gfn);
+        dma = gfn >> 12;
+    }
+
+    gpointer key = GSIZE_TO_POINTER(dma);
+    unsigned int counter = GPOINTER_TO_UINT(g_hash_table_lookup(dma_tracker, key));
+
+    if ( access == VMI_MEMACCESS_N )
+    {
+        if ( !counter )
+            return;
+
+        counter--;
+
+        if ( !counter )
+        {
+            if ( VMI_FAILURE == vmi_set_mem_event(vmi, dma, access, 0) )
+                return;
+
+            printf("EPT permissions relaxed for page at 0x%lx\n", dma);
+
+            g_hash_table_remove(dma_tracker, key);
+        } else
+            g_hash_table_insert(dma_tracker, key, GUINT_TO_POINTER(counter));
+
+    } else {
+        counter++;
+
+        if ( counter == 1 )
+        {
+            if ( VMI_FAILURE == vmi_set_mem_event(vmi, dma, access, 0) )
+                return;
+
+            printf("EPT permissions restricted for page at 0x%lx\n", dma);
+        }
+
+        g_hash_table_insert(dma_tracker, key, GUINT_TO_POINTER(counter));
+    }
 }
 
 static void reset_dma_permissions(gpointer data)
 {
     addr_t dma = GPOINTER_TO_SIZE(data);
-    set_dma_permissions(vmi, dma, target_pagetable, VMI_MEMACCESS_N);
+    if ( VMI_SUCCESS == vmi_set_mem_event(vmi, dma, VMI_MEMACCESS_N, 0) )
+        printf("EPT permissions relaxed for page at 0x%lx\n", dma);
 }
 
 static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -89,7 +132,6 @@ static void print_stacktrace(x86_registers_t *regs)
     ctx.tm = VMI_TM_PROCESS_PT;
     ctx.pt = regs->cr3;
 
-    unsigned int stackrace_limit = STACKTRACE_LIMIT;
     addr_t frame = regs->rbp;
 
     if ( regs->rbp == regs->rsp )
@@ -98,18 +140,20 @@ static void print_stacktrace(x86_registers_t *regs)
     /* TODO: 32-bit */
     while ( frame & (1ul<<47) )
     {
-        addr_t next_frame = 0, ret = 0;
+        addr_t next_frame = 0, frame_ret = 0;
 
         ctx.addr = frame;
-        vmi_read_addr(vmi, &ctx, &next_frame);
-
-        ctx.addr = frame + 8;
-        vmi_read_addr(vmi, &ctx, &ret);
-
-        if ( ret != (ret | VMI_BIT_MASK(47,63)) )
+        if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &next_frame) )
             break;
 
-        printf("\t0x%lx\n", ret);
+        ctx.addr = frame + 8;
+        if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &frame_ret) )
+            break;
+
+        if ( frame_ret != (frame_ret | VMI_BIT_MASK(47,63)) )
+            break;
+
+        printf("\t0x%lx\n", frame_ret);
 
         frame = next_frame;
     }
@@ -131,16 +175,88 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 }
 
 /*
- * We breakpoint dma_alloc_attrs to catch all callers, then breakpoint
+ * If kfx_dma_log is defined for the kernel we track that. It's a custom function
+ * that can be compiled into the kernel at desired locations that is easier to hook
+ * to collect all the necessary info to track DMA usage.
+ *
+ * Otherwise we breakpoint dma_alloc_attrs to catch all callers, then breakpoint
  * the return site. At the return site we extract the returned DMA address
- * and remove the underlying EPT permission.
+ * and remove the underlying EPT permission. This approach is more fragile
+ * and may miss and also overmonitor pages as we don't track when pages are no
+ * longer used for DMA (ie. dma_free_attrs) or when DMA is setup using other
+ * APIs or the swiotlb.
+ *
  */
 static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    if ( event->interrupt_event.gla == dma_alloc_attrs )
+    if ( event->interrupt_event.gla == kfx_dma_log )
+    {
+        // void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr, dma_addr_t dma, unsigned long size, struct device *dev, bool map);
+
+        addr_t vaddr = event->x86_regs->rdi;
+        addr_t paddr = event->x86_regs->rsi;
+        addr_t dmaaddr = event->x86_regs->rdx;
+        unsigned long size = event->x86_regs->rcx;
+        addr_t dev = event->x86_regs->r8;
+        bool map = event->x86_regs->r9;
+
+        bool ignore_alloc = false;
+        addr_t dev_driver, driver_name;
+
+        if ( (VMI_FAILURE != vmi_read_addr_va(vmi, dev + device_driver_offset, 0, &dev_driver)) &&
+             (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
+             (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
+            printf("Failed to read driver name\n");
+
+        if ( driver_filter )
+        {
+            if ( !alloc_dev_name )
+                ignore_alloc = true;
+            else if ( strcmp(driver_filter, alloc_dev_name) )
+                ignore_alloc = true;
+        }
+
+        printf("KF/x DMA log %s: 0x%lx -> 0x%lx <- DMA -> 0x%lx, size: %lu, map: %i\n", alloc_dev_name, vaddr, paddr, dmaaddr, size, map);
+
+        if ( alloc_dev_name )
+        {
+            free(alloc_dev_name);
+            alloc_dev_name = NULL;
+        }
+
+        if ( !alloc_only && !ignore_alloc )
+        {
+            ACCESS_CONTEXT(ctx);
+            ctx.tm = VMI_TM_PROCESS_DTB;
+            ctx.addr = event->x86_regs->rip;
+            ctx.pt = event->x86_regs->cr3;
+            ctx.pm = event->page_mode;
+
+            vmi_write_8(vmi, &ctx, &nop);
+
+            addr_t start = vaddr ?: paddr;
+            addr_t pt = vaddr ? event->x86_regs->cr3 : 0;
+            vmi_mem_access_t access = map ? VMI_MEMACCESS_RW : VMI_MEMACCESS_N;
+
+            // Make sure all pages underlying the allocation request are monitored
+            size += start & VMI_BIT_MASK(0,11);
+            unsigned int pages = size / 0x1000 + (size % 0x1000 ? 1 : 0);
+
+            for ( size_t i = 0; i < pages; i+=0x1000 )
+                 set_dma_permissions(vmi, start + i, pt, access);
+
+            vmi_write_8(vmi, &ctx, &cc);
+
+            event->x86_regs->rip += 1;
+            return VMI_EVENT_RESPONSE_SET_REGISTERS;
+        }
+    }
+    else if ( event->interrupt_event.gla == dma_alloc_attrs )
     {
         bool ignore_alloc = false;
+        addr_t dev_driver, driver_name;
         addr_t tmp = 0;
+
         ACCESS_CONTEXT(ctx);
         ctx.tm = VMI_TM_PROCESS_DTB;
         ctx.addr = event->x86_regs->rsp;
@@ -150,43 +266,40 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &tmp) )
             printf("Reading stack return failed\n");
 
-        if ( ret && ret != tmp )
+        if ( dma_alloc_attrs_ret && dma_alloc_attrs_ret != tmp )
         {
-            printf("A different ret was already breakpointed, 0x%lx != 0x%lx!\n", ret, tmp);
-            vmi_write_8_va(vmi, ret, 0, &ret_backup);
+            vmi_write_8_va(vmi, dma_alloc_attrs_ret, 0, &dma_alloc_attrs_ret_backup);
         }
 
         alloc_dev = event->x86_regs->rdi;
         alloc_size = event->x86_regs->rsi;
 
-        if ( driver )
+        if ( alloc_dev_name )
         {
-            addr_t dev_driver, driver_name;
-            char *name = NULL;
+            free(alloc_dev_name);
+            alloc_dev_name = NULL;
+        }
 
-            if ( (VMI_FAILURE != vmi_read_addr_va(vmi, alloc_dev + device_driver_offset, 0, &dev_driver)) &&
-                 (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
-                 (NULL != (name = vmi_read_str_va(vmi, driver_name, 0))) )
-            {
-                if ( strcmp(driver, name) )
-                {
-                    ignore_alloc = true;
-                }
-                free(name);
-            } else
-            {
-                fprintf(stderr, "Failed to read dev driver name. Assuming no match.\n");
+        if ( (VMI_FAILURE != vmi_read_addr_va(vmi, alloc_dev + device_driver_offset, 0, &dev_driver)) &&
+             (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
+             (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
+            printf("Failed to read driver name\n");
+
+        if ( driver_filter )
+        {
+            if ( !alloc_dev_name )
                 ignore_alloc = true;
-            }
+            else if ( strcmp(driver_filter, alloc_dev_name) )
+                ignore_alloc = true;
         }
 
         if ( tmp )
         {
             if ( !ignore_alloc )
             {
-                ret = tmp;
-                vmi_read_8_va(vmi, ret, 0, &ret_backup);
-                vmi_write_8_va(vmi, ret, 0, &cc);
+                dma_alloc_attrs_ret = tmp;
+                vmi_read_8_va(vmi, dma_alloc_attrs_ret, 0, &dma_alloc_attrs_ret_backup);
+                vmi_write_8_va(vmi, dma_alloc_attrs_ret, 0, &cc);
             }
 
             event->interrupt_event.reinject = 0;
@@ -195,27 +308,29 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         return VMI_EVENT_RESPONSE_EMULATE | VMI_EVENT_RESPONSE_SET_EMUL_INSN;
     }
-    else if ( event->interrupt_event.gla == ret )
+    else if ( event->interrupt_event.gla == dma_alloc_attrs_ret )
     {
         target_pagetable = event->x86_regs->cr3;
-        vmi_write_8_va(vmi, ret, 0, &ret_backup);
-        ret = 0;
+        vmi_write_8_va(vmi, dma_alloc_attrs_ret, 0, &dma_alloc_attrs_ret_backup);
+        dma_alloc_attrs_ret_backup = 0;
+        dma_alloc_attrs_ret = 0;
 
-        printf("DMA allocated @ 0x%lx. Size: %lu. Dev: 0x%lx\n", event->x86_regs->rax, alloc_size, alloc_dev);
+        printf("DMA allocated @ 0x%lx. Size: %lu. Dev: %s @ 0x%lx\n", event->x86_regs->rax, alloc_size, alloc_dev_name, alloc_dev);
+
+        if ( alloc_dev_name )
+        {
+            free(alloc_dev_name);
+            alloc_dev_name = NULL;
+        }
 
         if ( !alloc_only )
         {
             addr_t start = event->x86_regs->rax;
+            alloc_size += start & VMI_BIT_MASK(0,11);
+            unsigned int pages = alloc_size / 0x1000 + (alloc_size % 0x1000 ? 1 : 0);
 
-            // Check if allocation is on a 4k page boundary, if yes we'll need to trap both 4k pages
-            if ( ((start + alloc_size + 0xfff) >> 12) != ((start + alloc_size) >> 12) )
-                alloc_size += 0x1000;
-
-            for ( size_t i = 0; i < alloc_size; i+=0x1000 )
-            {
-                dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(start + i));
-                set_dma_permissions(vmi, start + i, event->x86_regs->cr3, VMI_MEMACCESS_RW);
-            }
+            for ( size_t i = 0; i < pages; i+=0x1000 )
+                 set_dma_permissions(vmi, start + i, target_pagetable, VMI_MEMACCESS_RW);
         }
 
         event->interrupt_event.reinject = 0;
@@ -267,12 +382,15 @@ int main(int argc, char** argv)
         {"driver", required_argument, NULL, 'r'},
         {"stacktrace", no_argument, NULL, 's'},
         {"alloc-only", no_argument, NULL, 'o'},
+        {"wait-for-cr3", no_argument, NULL, 'w'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
     const char* opts = "d:i:j:a:r:soh";
     uint32_t domid = 0;
     char *domain = NULL;
+    bool wait_for_cr3 = false;
+    GSList *dma_list;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -298,11 +416,14 @@ int main(int argc, char** argv)
         }
         case 'r':
         {
-            driver = optarg;
+            driver_filter = optarg;
             break;
         }
         case 'o':
             alloc_only = 1;
+            break;
+        case 'w':
+            wait_for_cr3 = true;
             break;
         case 'h': /* fall-through */
         default:
@@ -317,6 +438,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    setup_handlers();
+
     if ( !setup_vmi(&vmi, domain, domid, NULL, true, false) )
     {
         printf("Failed to enable LibVMI\n");
@@ -324,6 +447,8 @@ int main(int argc, char** argv)
     }
 
     vmi_pause_vm(vmi);
+
+    dma_tracker = g_hash_table_new_full(g_direct_hash, g_direct_equal, reset_dma_permissions, NULL);
 
     if ( vmi_get_num_vcpus(vmi) > 1 )
     {
@@ -343,7 +468,7 @@ int main(int argc, char** argv)
     if ( VMI_FAILURE == vmi_register_event(vmi, &mem_event) )
         goto done;
 
-    if ( VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
+    if ( wait_for_cr3 || VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
     {
         SETUP_REG_EVENT(&reg_event, CR3, VMI_REGACCESS_W, 0, cr3_cb);
         if ( VMI_FAILURE == vmi_register_event(vmi, &reg_event) )
@@ -373,27 +498,31 @@ int main(int argc, char** argv)
         goto done;
     }
 
-    if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
-        goto done;
-
-    printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
-
-    if ( driver )
+    if ( VMI_SUCCESS == vmi_translate_ksym2v(vmi, "kfx_dma_log", &kfx_dma_log) )
     {
-        if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device", "driver", &device_driver_offset)) ||
-             (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )
-        {
-            fprintf(stderr, "Cannot find device driver name offsets\n");
+        printf("kfx_dma_log @ 0x%lx\n", kfx_dma_log);
+
+        if ( VMI_FAILURE == vmi_write_8_va(vmi, kfx_dma_log, 0, &cc) )
             goto done;
-        }
+        if ( VMI_FAILURE == vmi_write_8_va(vmi, kfx_dma_log + 1, 0, &ret) )
+            goto done;
+    } else {
+        if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
+            goto done;
+        if ( VMI_FAILURE == vmi_read_va(vmi, dma_alloc_attrs, 0, 15, &emul_insn.data, NULL) )
+            goto done;
+        if ( VMI_FAILURE == vmi_write_8_va(vmi, dma_alloc_attrs, 0, &cc) )
+            goto done;
+
+        printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
     }
 
-    setup_handlers();
-
-    if ( VMI_FAILURE == vmi_read_va(vmi, dma_alloc_attrs, 0, 15, &emul_insn.data, NULL) )
+    if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device", "driver", &device_driver_offset)) ||
+         (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )
+    {
+        fprintf(stderr, "Cannot find device driver name offsets\n");
         goto done;
-    if ( VMI_FAILURE == vmi_write_8_va(vmi, dma_alloc_attrs, 0, &cc) )
-        goto done;
+    }
 
     GSList *tmp = dma_list;
     while ( tmp )
@@ -403,6 +532,7 @@ int main(int argc, char** argv)
 
         tmp = tmp->next;
     }
+    g_slist_free(dma_list);
 
     vmi_resume_vm(vmi);
 
@@ -412,8 +542,10 @@ int main(int argc, char** argv)
 done:
     if ( dma_alloc_attrs )
         vmi_write_8_va(vmi, dma_alloc_attrs, 0, (uint8_t*)&emul_insn.data);
+    if ( alloc_dev_name )
+        free(alloc_dev_name);
 
-    g_slist_free_full(dma_list, reset_dma_permissions);
+    g_hash_table_destroy(dma_tracker);
 
     vmi_resume_vm(vmi);
     vmi_destroy(vmi);

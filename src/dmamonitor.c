@@ -16,6 +16,7 @@
 #include <glib.h>
 #include "vmi.h"
 #include "signal.h"
+#include "stack_unwind.h"
 
 vmi_instance_t vmi;
 os_t os;
@@ -126,37 +127,19 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
 /*
  * Assume kernel is built with CONFIG_FRAME_POINTER
  */
-static void print_stacktrace(x86_registers_t *regs)
+static void print_stacktrace(x86_registers_t *regs, vmi_event_t *event)
 {
-    ACCESS_CONTEXT(ctx);
-    ctx.tm = VMI_TM_PROCESS_PT;
-    ctx.pt = regs->cr3;
+    GSList *stack = stack_unwind(vmi, regs, event->page_mode);
+    GSList *loop = stack;
 
-    addr_t frame = regs->rbp;
-
-    if ( regs->rbp == regs->rsp )
-        frame += 8;
-
-    /* TODO: 32-bit */
-    while ( frame & (1ul<<47) )
+    while(loop)
     {
-        addr_t next_frame = 0, frame_ret = 0;
-
-        ctx.addr = frame;
-        if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &next_frame) )
-            break;
-
-        ctx.addr = frame + 8;
-        if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &frame_ret) )
-            break;
-
-        if ( frame_ret != (frame_ret | VMI_BIT_MASK(47,63)) )
-            break;
-
-        printf("\t0x%lx\n", frame_ret);
-
-        frame = next_frame;
+        addr_t ip = GPOINTER_TO_SIZE(loop->data);
+        printf("\t0x%lx\n", ip);
+        loop = loop->next;
     }
+
+    g_slist_free(stack);
 }
 
 static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -167,7 +150,7 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
 
     if ( stacktrace )
-        print_stacktrace(event->x86_regs);
+        print_stacktrace(event->x86_regs, event);
 
     vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
     singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);
@@ -534,6 +517,9 @@ int main(int argc, char** argv)
     }
     g_slist_free(dma_list);
 
+    if ( stacktrace )
+        stack_unwind_init();
+
     vmi_resume_vm(vmi);
 
     while ( !interrupted && VMI_SUCCESS == vmi_events_listen(vmi, 500) )
@@ -544,6 +530,9 @@ done:
         vmi_write_8_va(vmi, dma_alloc_attrs, 0, (uint8_t*)&emul_insn.data);
     if ( alloc_dev_name )
         free(alloc_dev_name);
+
+    if ( stacktrace )
+        stack_unwind_clear();
 
     g_hash_table_destroy(dma_tracker);
 

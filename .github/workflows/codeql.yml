@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison
+          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libunwind-dev
           curl -s https://api.github.com/repos/intel/kernel-fuzzer-for-xen-project/releases/latest | grep browser_download_url | awk '{ print $2 }' | xargs wget
           tar xzvf kfx.tar.gz
           sudo dpkg -i *.deb

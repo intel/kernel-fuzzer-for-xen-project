@@ -16,6 +16,7 @@ PKG_CHECK_MODULES([CAPSTONE], [capstone >= 4.0.2],[],[AC_MSG_ERROR(Capstone not 
 PKG_CHECK_MODULES([LIBXC], [xencontrol >= 4.14.0],[],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([XENFMEM], [xenforeignmemory >= 1.3],[],[AC_MSG_ERROR(libxenforeignmemory not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([GLIB], [glib-2.0],[],[AC_MSG_ERROR(glib-2.0 not found. Install missing package and re-run)])
+PKG_CHECK_MODULES([UNWIND], [libunwind-generic],[],[AC_MSG_ERROR(libunwind not found. Install missing package and re-run)])
 AC_CHECK_HEADERS([libxl.h], [], [AC_ERROR([libxl headers are not usable. Install missing package and re-run])])
 AC_CHECK_HEADERS([xen/xen.h], [], [AC_MSG_ERROR([Xen headers are not usable. Install missing package and re-run])])
 AC_CHECK_HEADERS([math.h], [], [AC_MSG_ERROR([math.h not usable. Install missing package and re-run])])

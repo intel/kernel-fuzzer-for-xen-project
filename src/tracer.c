@@ -484,6 +484,16 @@ static void save_cov(gpointer k, gpointer v, gpointer d)
         fprintf((FILE*)d, "0x%" PRIx64 "\n", GPOINTER_TO_SIZE(k));
 }
 
+void do_record_codecov(void)
+{
+    FILE *f = fopen(record_codecov, "a");
+    if ( !f )
+        return;
+
+    g_hash_table_foreach(codecov, save_cov, f);
+    fclose(f);
+}
+
 void close_trace(vmi_instance_t vmi) {
     vmi_clear_event(vmi, &singlestep_event, NULL);
     vmi_clear_event(vmi, &int3_event, NULL);
@@ -509,12 +519,7 @@ void close_trace(vmi_instance_t vmi) {
 
     if ( record_codecov )
     {
-        FILE *f = fopen(record_codecov, "a");
-        if ( f )
-        {
-            g_hash_table_foreach(codecov, save_cov, f);
-            fclose(f);
-        }
+        do_record_codecov();
         g_hash_table_destroy(codecov);
     }
 

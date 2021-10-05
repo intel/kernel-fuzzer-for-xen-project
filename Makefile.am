@@ -13,6 +13,7 @@ kfx_SOURCES = src/main.c \
 
 kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(XENFMEM_LIBS) $(GLIB_LIBS)
 kfx_CFLAGS  = -Wall -Wextra -fstack-protector -Wno-override-init -Wno-unused-variable \
+              -DCODECOV_SIGNAL \
               $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(XENFMEM_CFLAGS) $(GLIB_CFLAGS)
 
 if STATIC_LIBXDC

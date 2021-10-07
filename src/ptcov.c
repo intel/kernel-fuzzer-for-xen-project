@@ -69,19 +69,15 @@ static void* page_cache_fetch(void* self_ptr, uint64_t vaddr, bool* success)
     return page;
 }
 
-static void decode_cb(void* fd, uint64_t src, uint64_t dst)
+static void ip_cb(void* fd, uint64_t ip)
 {
     (void)fd;
-    (void)src;
 
-    if ( debug ) printf("[IPT] 0x%lx -> 0x%lx\n", src, dst);
-}
+    if ( record_codecov )
+        g_hash_table_insert(codecov, GSIZE_TO_POINTER(ip), NULL);
 
-static void record_cb(void* fd, uint64_t src, uint64_t dst)
-{
-    (void)fd;
-    (void)src;
-    g_hash_table_insert(codecov, GSIZE_TO_POINTER(dst), NULL);
+    if ( debug )
+        printf("[IPT] 0x%lx\n", ip);
 }
 /* *************************************************************** */
 
@@ -142,15 +138,8 @@ bool setup_pt(void)
     if ( !(decoder = libxdc_init(filter, &page_cache_fetch, NULL, map, MAP_SIZE)) )
         return false;
 
-    if ( record_codecov )
-        libxdc_register_bb_callback(decoder, &record_cb, NULL);
-
-    if ( debug )
-    {
-        libxdc_enable_tracing(decoder);
-        int fd = open("/tmp/decoder_temp_trace_file", O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU);
-        libxdc_register_edge_callback(decoder, &decode_cb, &fd);
-    }
+    if ( debug || record_codecov )
+        libxdc_register_ip_callback(decoder, &ip_cb, NULL);
 
     return true;
 }

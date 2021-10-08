@@ -42,7 +42,9 @@ stepper_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS)
 stepper_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS)
 
 bin_PROGRAMS += dmamonitor
-dmamonitor_SOURCES = src/dmamonitor.c src/vmi.c src/vmi.h src/signal.c src/signal.h src/stack_unwind.c src/stack_unwind.h
+dmamonitor_SOURCES = src/dmamonitor.c src/vmi.c src/vmi.h src/signal.c src/signal.h \
+                     src/stack_unwind.c src/stack_unwind.h \
+                     src/save-transplant.c src/save-transplant.h
 dmamonitor_LDADD = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(GLIB_LIBS) $(UNWIND_LIBS)
 dmamonitor_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(GLIB_CFLAGS) $(UNWIND_CFLAGS)
 

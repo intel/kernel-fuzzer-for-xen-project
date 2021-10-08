@@ -14,9 +14,11 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <glib.h>
+#include <glib/gprintf.h>
 #include "vmi.h"
 #include "signal.h"
 #include "stack_unwind.h"
+#include "save-transplant.h"
 
 vmi_instance_t vmi;
 os_t os;
@@ -51,17 +53,25 @@ emul_insn_t emul_insn = { .dont_free = 1 };
 addr_t device_driver_offset = 0, driver_name_offset = 0;
 
 GHashTable *dma_tracker;
+GHashTable *stack_tracker;
 
-static void usage(void)
+const char *memmap;
+
+uint64_t stack_save_key, stack_save_unique;
+
+static void options(void)
 {
-    printf("Usage:\n");
+    printf("Options:\n");
     printf("\t--domain <domain name>\n");
     printf("\t--domid <domain id>\n");
     printf("\t--json <path to kernel debug json>\n");
     printf("\t--driver <driver/module name>\n");
-    printf("\t--stacktrace\n");
     printf("\t--dma <dma address>\n");
     printf("\t--alloc-only\n");
+    printf("\t--stacktrace\n");
+    printf("\t--memmap <memmap> (if specified will save a snapshot for unique stacktraces)\n");
+    printf("\t--stack-save-key <key> (specify to save snapshot only for specific stacktrace)\n");
+    printf("\t--stack-save-unique <# of frames> (specify to limit stack key calculation)\n");
 }
 
 static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_mem_access_t access)
@@ -124,19 +134,85 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
+static inline uint64_t stack_key(uint64_t v, uint64_t p)
+{
+    v = (v >> 4) ^ (v << 8);
+    return v ^ p;
+}
+
 /*
  * Assume kernel is built with CONFIG_FRAME_POINTER
  */
-static void print_stacktrace(x86_registers_t *regs, vmi_event_t *event)
+static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memaccess)
 {
-    GSList *stack = stack_unwind(vmi, regs, event->page_mode);
+    uint64_t key = 0, counter = 0;
+    GSList *stack = stack_unwind(vmi, event->x86_regs, event->page_mode);
     GSList *loop = stack;
 
     while(loop)
     {
         addr_t ip = GPOINTER_TO_SIZE(loop->data);
-        printf("\t0x%lx\n", ip);
         loop = loop->next;
+        counter++;
+
+        printf("\t0x%lx\n", ip);
+
+        // calculate stack key up to limit specified (0 = no limit)
+        if ( stack_save_unique <= counter )
+            key = stack_key(ip, key >> 1);
+    }
+
+    gpointer found = g_hash_table_lookup(stack_tracker, GSIZE_TO_POINTER(key));
+
+    printf("\tStack key: %lu %s\n", key, found ? "" : "new!");
+
+    if ( !found )
+    {
+        g_hash_table_insert(stack_tracker, GSIZE_TO_POINTER(key), GSIZE_TO_POINTER(1));
+
+        if ( memmap && (!stack_save_key || stack_save_key == key) )
+        {
+            gchar *regf = g_strdup_printf("regs-%lu.csv", key);
+            gchar *mapf = g_strdup_printf("memmap-%lu", key);
+            gchar *vmcoref = g_strdup_printf("vmcore-%lu", key);
+            gchar *maccessf = g_strdup_printf("memaccess-%lu", key);
+            gchar *stackf = g_strdup_printf("stacktrace-%lu", key);
+            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-%lu.tar.gz regs-%lu.csv memmap-%lu vmcore-%lu memaccess-%lu stacktrace-%lu\n",
+                                         key, key, key, key, key, key);
+
+            transplant_save_regs(vmi, regf);
+            transplant_save_mem(vmi, memmap, mapf, vmcoref);
+
+            FILE *f = fopen(maccessf, "w");
+            if ( f )
+            {
+                fprintf(f, "0x%lx\n", memaccess);
+                fclose(f);
+            };
+
+            f = fopen(stackf, "w");
+            if ( f )
+            {
+                loop = stack;
+                while(loop)
+                {
+                    addr_t ip = GPOINTER_TO_SIZE(loop->data);
+                    loop = loop->next;
+                    fprintf(f, "0x%lx\n", ip);
+                }
+                fclose(f);
+            }
+
+            printf("Compressing: %s\n", tar);
+
+            g_spawn_command_line_sync(tar, NULL, NULL, NULL, NULL);
+
+            g_free(stackf);
+            g_free(maccessf);
+            g_free(regf);
+            g_free(mapf);
+            g_free(vmcoref);
+        }
     }
 
     g_slist_free(stack);
@@ -149,8 +225,8 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
            (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
 
-    if ( stacktrace )
-        print_stacktrace(event->x86_regs, event);
+    if ( stacktrace || memmap )
+        do_stacktrace(vmi, event, event->mem_event.gla);
 
     vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
     singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);
@@ -366,6 +442,9 @@ int main(int argc, char** argv)
         {"stacktrace", no_argument, NULL, 's'},
         {"alloc-only", no_argument, NULL, 'o'},
         {"wait-for-cr3", no_argument, NULL, 'w'},
+        {"memmap", required_argument, NULL, 'm'},
+        {"stack-save-key", required_argument, NULL, 'k'},
+        {"stack-save-unique", required_argument, NULL, 'S'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -373,7 +452,7 @@ int main(int argc, char** argv)
     uint32_t domid = 0;
     char *domain = NULL;
     bool wait_for_cr3 = false;
-    GSList *dma_list;
+    GSList *dma_list = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -408,16 +487,25 @@ int main(int argc, char** argv)
         case 'w':
             wait_for_cr3 = true;
             break;
+        case 'm':
+            memmap = optarg;
+            break;
+        case 'k':
+            stack_save_key = strtoull(optarg, NULL, 0);
+            break;
+        case 'S':
+            stack_save_unique = strtoull(optarg, NULL, 0);
+            break;
         case 'h': /* fall-through */
         default:
-            usage();
+            options();
             return -1;
         };
     }
 
     if ( (!domid && !domain) || !json )
     {
-        usage();
+        options();
         return -1;
     }
 
@@ -432,6 +520,7 @@ int main(int argc, char** argv)
     vmi_pause_vm(vmi);
 
     dma_tracker = g_hash_table_new_full(g_direct_hash, g_direct_equal, reset_dma_permissions, NULL);
+    stack_tracker = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     if ( vmi_get_num_vcpus(vmi) > 1 )
     {
@@ -515,9 +604,11 @@ int main(int argc, char** argv)
 
         tmp = tmp->next;
     }
-    g_slist_free(dma_list);
 
-    if ( stacktrace )
+    if ( dma_list )
+        g_slist_free(dma_list);
+
+    if ( stacktrace || memmap )
         stack_unwind_init();
 
     vmi_resume_vm(vmi);
@@ -531,10 +622,11 @@ done:
     if ( alloc_dev_name )
         free(alloc_dev_name);
 
-    if ( stacktrace )
+    if ( stacktrace || memmap )
         stack_unwind_clear();
 
     g_hash_table_destroy(dma_tracker);
+    g_hash_table_destroy(stack_tracker);
 
     vmi_resume_vm(vmi);
     vmi_destroy(vmi);

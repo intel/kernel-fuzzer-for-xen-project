@@ -10,6 +10,6 @@
 #include <libvmi/libvmi.h>
 
 bool transplant_save_regs(vmi_instance_t vmi, const char *regf);
-bool transplant_save_mem(vmi_instance_t vmi, GHashTable *map, const char *mapf, const char *memf);
+bool transplant_save_mem(vmi_instance_t vmi, const char *map_in, const char *map_out, const char *memf);
 
 #endif

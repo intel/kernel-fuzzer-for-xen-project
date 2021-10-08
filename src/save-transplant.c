@@ -12,7 +12,7 @@ bool transplant_save_regs(vmi_instance_t vmi, const char *regf)
     if ( VMI_FAILURE == vmi_get_vcpuregs(vmi, &regs, 0) )
         return false;
 
-    FILE *f = fopen(regf, "w+");
+    FILE *f = fopen(regf, "w");
     if ( !f )
         return false;
 
@@ -68,20 +68,47 @@ bool transplant_save_regs(vmi_instance_t vmi, const char *regf)
     return true;
 }
 
-bool transplant_save_mem(vmi_instance_t vmi, GHashTable *map, const char *memmap, const char *vmcore)
+static GHashTable* read_memmap(const char *memmap)
 {
-    FILE *fp = fopen(vmcore, "w+");
+    FILE *fp = fopen(memmap, "r");
+    if ( !fp )
+        return NULL;
+
+    GHashTable *t = g_hash_table_new(g_direct_hash, g_direct_equal);
+    size_t len = 0;
+    char *mapline = NULL;
+
+    while (getline(&mapline, &len, fp) != -1) {
+        gchar **split = g_strsplit(mapline, " ", 3);
+        size_t moffset = strtoull(split[1], NULL, 16);
+        size_t size = strtoull(split[2], NULL, 16);
+        g_strfreev(split);
+
+        g_hash_table_insert(t, GSIZE_TO_POINTER(moffset), GSIZE_TO_POINTER(size));
+    }
+
+    fclose(fp);
+    return t;
+}
+
+bool transplant_save_mem(vmi_instance_t vmi, const char *memmap_in, const char *memmap_out, const char *vmcore)
+{
+    GHashTable *memmapt = read_memmap(memmap_in);
+    if ( !memmapt )
+        return false;
+
+    FILE *fp = fopen(vmcore, "w");
     if ( !fp )
         return false;
 
-    FILE *fm = fopen(memmap, "w+");
+    FILE *fm = fopen(memmap_out, "w");
     if ( !fm )
         return false;
 
     GHashTableIter iter;
     gpointer key, value;
 
-    g_hash_table_iter_init (&iter, map);
+    g_hash_table_iter_init (&iter, memmapt);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         addr_t mem = GPOINTER_TO_SIZE(key);
@@ -100,6 +127,7 @@ bool transplant_save_mem(vmi_instance_t vmi, GHashTable *map, const char *memmap
         }
     }
 
+    g_hash_table_destroy(memmapt);
     fclose(fm);
     fclose(fp);
     return true;

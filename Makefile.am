@@ -56,6 +56,11 @@ stack_unwind_SOURCES = src/stack_unwind_main.c src/stack_unwind.c src/stack_unwi
 stack_unwind_LDADD = $(LIBS) $(VMI_LIBS) $(GLIB_LIBS) $(UNWIND_LIBS)
 stack_unwind_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(GLIB_CFLAGS) $(UNWIND_CFLAGS)
 
+bin_PROGRAMS += save-transplant
+save_transplant_SOURCES = src/save-transplant-main.c src/save-transplant.c src/save-transplant.h src/vmi.c src/vmi.h
+save_transplant_LDADD = $(LIBS) $(VMI_LIBS) $(GLIB_LIBS)
+save_transplant_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(GLIB_CFLAGS)
+
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \
              patches/0001-AFL-Xen-mode.patch \

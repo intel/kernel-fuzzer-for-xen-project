@@ -275,13 +275,26 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
         if ( event->x86_regs->rip != next_cf_vaddr )
         {
             /* This is not the next CF address */
-            if ( harness_cpuid )
+
+            /*
+             * Can be a compiled in sink point with a magic mark.
+             * Use RCX to distinguish between various sink points.
+             * This can be useful if finding the sink locations is otherwise hard due
+             * to relocation / randomization or just to simplify things.
+             */
+            if ( event->x86_regs->rax == 0x13371337 )
+            {
+                crash = 1;
+                if ( debug ) printf("\t Compiled-in sink (rcx: 0x%lx)\n", event->x86_regs->rcx);
+            }
+            else if ( harness_cpuid )
             {
                 /* This is case 3) expecting breakpoints only at the sinks so reinject this to the VM */
                 if ( debug ) printf("\t Reinjecting unexpected breakpoint at 0x%lx\n", event->x86_regs->rip);
                 event->interrupt_event.reinject = 1;
                 return 0;
-            }
+            } else if ( debug )
+                printf("\t Harness signal on finish\n");
 
             /*
              * This is case 2)
@@ -295,7 +308,6 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
             if ( doublefetch_trip )
                 crash = 1;
 
-            if ( debug ) printf("\t Harness signal on finish\n");
             return 0;
         }
 

@@ -34,7 +34,7 @@ char *driver_filter;
 
 bool stacktrace;
 
-addr_t kfx_dma_log;
+addr_t kfx_dma_log, kfx_dma_log_cc;
 addr_t dma_alloc_attrs, dma_alloc_attrs_ret;
 uint8_t dma_alloc_attrs_ret_backup;
 
@@ -69,9 +69,11 @@ static void options(void)
     printf("\t--dma <dma address>\n");
     printf("\t--alloc-only\n");
     printf("\t--stacktrace\n");
+    printf("\t--wait-for-cr3\n");
     printf("\t--memmap <memmap> (if specified will save a snapshot for unique stacktraces)\n");
     printf("\t--stack-save-key <key> (specify to save snapshot only for specific stacktrace)\n");
     printf("\t--stack-save-unique <# of frames> (specify to limit stack key calculation)\n");
+    printf("\t--kvmi <socket>\n");
 }
 
 static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_mem_access_t access)
@@ -134,10 +136,10 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
-static inline uint64_t stack_key(uint64_t v, uint64_t p)
+static inline uint64_t stack_key(uint64_t k, uint64_t v)
 {
     v = (v >> 4) ^ (v << 8);
-    return v ^ p;
+    return v ^ (k >> 1);
 }
 
 /*
@@ -145,6 +147,14 @@ static inline uint64_t stack_key(uint64_t v, uint64_t p)
  */
 static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memaccess)
 {
+#ifndef HAVE_XEN
+    /*
+     * On KVM the memory access is 1-copy instead of zero-copy, so need to make sure
+     * all pages are fresh before poking around.
+     */
+    vmi_pagecache_flush(vmi);
+#endif
+
     uint64_t key = 0, counter = 0;
     GSList *stack = stack_unwind(vmi, event->x86_regs, event->page_mode);
     GSList *loop = stack;
@@ -159,7 +169,7 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
 
         // calculate stack key up to limit specified (0 = no limit)
         if ( stack_save_unique <= counter )
-            key = stack_key(ip, key >> 1);
+            key = stack_key(key, ip);
     }
 
     gpointer found = g_hash_table_lookup(stack_tracker, GSIZE_TO_POINTER(key));
@@ -177,11 +187,17 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
             gchar *vmcoref = g_strdup_printf("vmcore-%lu", key);
             gchar *maccessf = g_strdup_printf("memaccess-%lu", key);
             gchar *stackf = g_strdup_printf("stacktrace-%lu", key);
-            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-%lu.tar.gz regs-%lu.csv memmap-%lu vmcore-%lu memaccess-%lu stacktrace-%lu\n",
+            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-%lu.tar.gz regs-%lu.csv memmap-%lu vmcore-%lu memaccess-%lu stacktrace-%lu",
                                          key, key, key, key, key, key);
+
+            // don't save the kfx log breakpoint in the snapshot
+            vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &nop);
 
             transplant_save_regs(vmi, regf);
             transplant_save_mem(vmi, memmap, mapf, vmcoref);
+
+            // add back the breakpoint
+            vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &cc);
 
             FILE *f = fopen(maccessf, "w");
             if ( f )
@@ -205,8 +221,9 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
 
             printf("Compressing: %s\n", tar);
 
-            g_spawn_command_line_sync(tar, NULL, NULL, NULL, NULL);
+            g_spawn_command_line_async(tar, NULL);
 
+            g_free(tar);
             g_free(stackf);
             g_free(maccessf);
             g_free(regf);
@@ -248,9 +265,25 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
  */
 static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    if ( event->interrupt_event.gla == kfx_dma_log )
+    event->interrupt_event.reinject = 0;
+
+    if ( event->x86_regs->rax == 0x13371337 )
     {
-        // void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr, dma_addr_t dma, unsigned long size, struct device *dev, bool map);
+        /*
+         * We might find sink breakpoints, ignore those.
+         */
+        event->x86_regs->rip += 1;
+        return VMI_EVENT_RESPONSE_SET_REGISTERS;
+    }
+    else if ( event->interrupt_event.gla == kfx_dma_log || event->x86_regs->rax == 0x13371338 )
+    {
+        /*
+         * Found the custom kfx_dma_log function (either by address or by mark):
+         *
+         * void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr, dma_addr_t dma, unsigned long size, struct device *dev, bool map);
+         */
+
+        kfx_dma_log_cc = event->interrupt_event.gla;
 
         addr_t vaddr = event->x86_regs->rdi;
         addr_t paddr = event->x86_regs->rsi;
@@ -291,25 +324,22 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             ctx.pt = event->x86_regs->cr3;
             ctx.pm = event->page_mode;
 
-            vmi_write_8(vmi, &ctx, &nop);
-
             addr_t start = vaddr ?: paddr;
             addr_t pt = vaddr ? event->x86_regs->cr3 : 0;
             vmi_mem_access_t access = map ? VMI_MEMACCESS_RW : VMI_MEMACCESS_N;
 
             // Make sure all pages underlying the allocation request are monitored
             size += start & VMI_BIT_MASK(0,11);
-            unsigned int pages = size / 0x1000 + (size % 0x1000 ? 1 : 0);
+            unsigned int pages = size / 0x1000 + !!(size % 0x1000);
 
             for ( size_t i = 0; i < pages; i+=0x1000 )
                  set_dma_permissions(vmi, start + i, pt, access);
-
-            vmi_write_8(vmi, &ctx, &cc);
 
             event->x86_regs->rip += 1;
             return VMI_EVENT_RESPONSE_SET_REGISTERS;
         }
     }
+#ifdef HAVE_XEN
     else if ( event->interrupt_event.gla == dma_alloc_attrs )
     {
         bool ignore_alloc = false;
@@ -361,7 +391,6 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
                 vmi_write_8_va(vmi, dma_alloc_attrs_ret, 0, &cc);
             }
 
-            event->interrupt_event.reinject = 0;
             event->emul_insn = &emul_insn;
         }
 
@@ -391,9 +420,8 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             for ( size_t i = 0; i < pages; i+=0x1000 )
                  set_dma_permissions(vmi, start + i, target_pagetable, VMI_MEMACCESS_RW);
         }
-
-        event->interrupt_event.reinject = 0;
     }
+#endif
     else
         event->interrupt_event.reinject = 1;
 
@@ -404,11 +432,15 @@ static event_response_t after_cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     event_response_t rc = VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 
+    printf("Got CR3 callback, trying to init LibVMI OS bits\n");
+
     if ( VMI_PM_UNKNOWN == vmi_init_paging(vmi, event->vcpu_id) )
         return rc;
 
     if ( VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
         return rc;
+
+    printf("LibVMI OS init success\n");
 
     interrupted = 1337;
     vmi_pause_vm(vmi);
@@ -445,12 +477,14 @@ int main(int argc, char** argv)
         {"memmap", required_argument, NULL, 'm'},
         {"stack-save-key", required_argument, NULL, 'k'},
         {"stack-save-unique", required_argument, NULL, 'S'},
+        {"kvmi", required_argument, NULL, 'K'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:a:r:soh";
+    const char* opts = "d:i:j:a:r:m:k:S:K:sowh";
     uint32_t domid = 0;
     char *domain = NULL;
+    char *kvmi = NULL;
     bool wait_for_cr3 = false;
     GSList *dma_list = NULL;
 
@@ -496,6 +530,9 @@ int main(int argc, char** argv)
         case 'S':
             stack_save_unique = strtoull(optarg, NULL, 0);
             break;
+        case 'K':
+            kvmi = optarg;
+            break;
         case 'h': /* fall-through */
         default:
             options();
@@ -511,7 +548,7 @@ int main(int argc, char** argv)
 
     setup_handlers();
 
-    if ( !setup_vmi(&vmi, domain, domid, NULL, true, false) )
+    if ( !setup_vmi(&vmi, domain, domid, NULL, kvmi, true, false) )
     {
         printf("Failed to enable LibVMI\n");
         return -1;
@@ -542,6 +579,8 @@ int main(int argc, char** argv)
 
     if ( wait_for_cr3 || VMI_OS_UNKNOWN == vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, json, NULL) )
     {
+        printf("Registering CR3 callback\n");
+
         SETUP_REG_EVENT(&reg_event, CR3, VMI_REGACCESS_W, 0, cr3_cb);
         if ( VMI_FAILURE == vmi_register_event(vmi, &reg_event) )
         {
@@ -550,6 +589,8 @@ int main(int argc, char** argv)
         }
 
         singlestep_event.callback = after_cr3_cb;
+
+        printf("Waiting for CR3 callback\n");
 
         vmi_resume_vm(vmi);
 
@@ -578,7 +619,9 @@ int main(int argc, char** argv)
             goto done;
         if ( VMI_FAILURE == vmi_write_8_va(vmi, kfx_dma_log + 1, 0, &ret) )
             goto done;
-    } else {
+    }
+#ifdef HAVE_XEN
+    else {
         if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
             goto done;
         if ( VMI_FAILURE == vmi_read_va(vmi, dma_alloc_attrs, 0, 15, &emul_insn.data, NULL) )
@@ -588,6 +631,12 @@ int main(int argc, char** argv)
 
         printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
     }
+#else
+    else {
+        printf("On KVM the target kernel must be compiled with kfx_dma_log\n");
+        goto done;
+    }
+#endif
 
     if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device", "driver", &device_driver_offset)) ||
          (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )

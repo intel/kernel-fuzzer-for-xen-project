@@ -27,6 +27,7 @@ static void usage(void)
     printf("\t--domain <domain name>\n");
     printf("\t--domid <domain id>\n");
     printf("\t--memmap <memmap>\n");
+    printf("\t--kvmi <socket>\n");
 }
 
 int main(int argc, char** argv)
@@ -37,12 +38,14 @@ int main(int argc, char** argv)
         {"domain", required_argument, NULL, 'd'},
         {"domid", required_argument, NULL, 'i'},
         {"memmap", required_argument, NULL, 'm'},
+        {"kvmi", required_argument, NULL, 'K'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:m:h";
+    const char* opts = "d:i:m:K:h";
     uint32_t domid = 0;
     char *domain = NULL;
+    char *kvmi = NULL;
     const char *memmap = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
@@ -58,6 +61,9 @@ int main(int argc, char** argv)
         case 'm':
             memmap = optarg;
             break;
+        case 'K':
+            kvmi = optarg;
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -71,7 +77,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, domain, domid, NULL, false, false) )
+    if ( !setup_vmi(&vmi, domain, domid, NULL, kvmi, false, false) )
     {
         printf("Failed to init LibVMI\n");
         return -1;

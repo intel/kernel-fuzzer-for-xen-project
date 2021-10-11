@@ -7,11 +7,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
-#include <xenctrl.h>
 #include <capstone.h>
 #include <glib.h>
 #include "vmi.h"
 #include "signal.h"
+
+#ifdef HAVE_XEN
+#include <xenctrl.h>
+xc_interface *xc;
+#endif
 
 vmi_instance_t vmi;
 os_t os;
@@ -21,7 +25,6 @@ addr_t stop_rip;
 bool loopmode, reset, stop_on_cpuid, stop_on_sysret, stop_on_breakpoint, print_hex, print_regs;
 int interrupted;
 unsigned long limit, count;
-xc_interface *xc;
 csh cs_handle;
 page_mode_t pm;
 
@@ -193,13 +196,11 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, NULL, domid, NULL, true, true) )
+    if ( !setup_vmi(&vmi, NULL, domid, NULL, NULL, true, true) )
         return -1;
 
+#ifdef HAVE_XEN
     if ( !(xc = xc_interface_open(0, 0, 0)) )
-        goto done;
-
-    if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
         goto done;
 
     if ( reset && xc_memshr_fork_reset(xc, domid) )
@@ -207,6 +208,10 @@ int main(int argc, char** argv)
         printf("Failed to reset VM, is it a fork?\n");
         goto done;
     }
+#endif
+
+    if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
+        goto done;
 
     setup_handlers();
 
@@ -234,11 +239,13 @@ int main(int argc, char** argv)
         {
             vmi_pagecache_flush(vmi);
 
+#ifdef HAVE_XEN
             if ( xc_memshr_fork_reset(xc, domid) )
             {
                 printf("Failed to reset VM, is it a fork?\n");
                 break;
             }
+#endif
 
             printf("----------------------------------------\n");
         }
@@ -256,8 +263,12 @@ int main(int argc, char** argv)
     } while ( loopmode );
 
 done:
+
+#ifdef HAVE_XEN
     if ( xc )
         xc_interface_close(xc);
+#endif
+
     cs_close(&cs_handle);
     vmi_destroy(vmi);
 

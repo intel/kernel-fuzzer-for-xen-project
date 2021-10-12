@@ -44,7 +44,7 @@ PRs that are fixing bugs of any kind are welcome but this repository is intended
 15. [Setup the VM for fuzzing](#section-15)
 16. [Connect to the VM's console](#section-16)
 17. [Insert the target kernel module](#section-17)
-18. [Star fuzzing using AFL](#section-18)
+18. [Start fuzzing using AFL](#section-18)
 19. [Debugging](#section-19)
 20. [Intel Processor Trace](#section-20)
 21. [Triaging crashes](#section-21)

@@ -13,25 +13,20 @@ struct wrapper
 {
     vmi_instance_t vmi;
     x86_registers_t *regs;
-    page_mode_t pm;
+    access_context_t *ctx;
 };
 
 static int _unw_access_mem(unw_addr_space_t as, unw_word_t addr, unw_word_t *valp, int __write, void *arg)
 {
     struct wrapper *w = (struct wrapper *)arg;
-    ACCESS_CONTEXT(ctx);
-    ctx.pm = w->pm;
-    ctx.tm = VMI_TM_PROCESS_PT;
-    ctx.pt = w->regs->cr3;
-    ctx.addr = addr;
-
+    vmi_instance_t vmi = w->vmi;
+    access_context_t *ctx = w->ctx;
     addr_t tmp = 0;
 
-    if ( VMI_FAILURE == vmi_read_64(w->vmi, &ctx, &tmp) )
-    {
-        printf("Failed to read mem at 0x%lx\n", addr);
+    ctx->addr = addr;
+
+    if ( VMI_FAILURE == vmi_read_64(w->vmi, ctx, &tmp) )
         return 1;
-    }
 
     *valp = tmp;
     return 0;
@@ -110,22 +105,31 @@ bool stack_unwind_init(void)
 
 GSList *stack_unwind(vmi_instance_t vmi, x86_registers_t *regs, page_mode_t pm)
 {
+    ACCESS_CONTEXT(ctx);
+    ctx.tm = VMI_TM_PROCESS_PT;
+    ctx.pm = pm;
+    ctx.pt = regs->cr3;
+
     struct wrapper w = {
         .vmi = vmi,
-        .regs = regs,
-        .pm = pm
+        .ctx = &ctx,
+        .regs = regs
     };
 
     GSList *stack = NULL;
     unw_cursor_t unw_cursor;
     unw_init_remote(&unw_cursor, unw_as, &w);
     int rc;
+    uint8_t tmp;
 
     do {
         unw_word_t pc;
-        unw_get_reg(&unw_cursor, UNW_REG_IP, &pc);
-
-        stack = g_slist_prepend(stack, GSIZE_TO_POINTER(pc));
+        if ( !unw_get_reg(&unw_cursor, UNW_REG_IP, &pc) && pc )
+        {
+            ctx.addr = pc;
+            if ( VMI_SUCCESS == vmi_read_8(vmi, &ctx, &tmp) )
+                stack = g_slist_prepend(stack, GSIZE_TO_POINTER(pc));
+        }
     } while( (rc = unw_step(&unw_cursor)) > 0 );
 
     if ( rc < 0 )

@@ -237,7 +237,7 @@ static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
            (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
 
-    if ( stacktrace || memmap )
+    if ( (event->mem_event.out_access & VMI_MEMACCESS_R) && (stacktrace || memmap) )
         do_stacktrace(vmi, event, event->mem_event.gla);
 
     vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);

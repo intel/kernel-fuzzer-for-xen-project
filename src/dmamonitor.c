@@ -19,6 +19,7 @@
 #include "signal.h"
 #include "stack_unwind.h"
 #include "save-transplant.h"
+#include "city.h"
 
 vmi_instance_t vmi;
 os_t os;
@@ -136,12 +137,6 @@ static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
-static inline uint64_t stack_key(uint64_t k, uint64_t v)
-{
-    v = (v >> 4) ^ (v << 8);
-    return v ^ (k >> 1);
-}
-
 /*
  * Assume kernel is built with CONFIG_FRAME_POINTER
  */
@@ -168,8 +163,8 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
         printf("\t0x%lx\n", ip);
 
         // calculate stack key up to limit specified (0 = no limit)
-        if ( stack_save_unique <= counter )
-            key = stack_key(key, ip);
+        if ( stack_save_unique >= counter )
+            key = Hash128to64(key, ip);
     }
 
     gpointer found = g_hash_table_lookup(stack_tracker, GSIZE_TO_POINTER(key));

@@ -58,7 +58,8 @@ GHashTable *stack_tracker;
 
 const char *memmap;
 
-uint64_t stack_save_key, stack_save_unique;
+uint64_t stack_save_key, stack_frames;
+char *stack_unique;
 
 static void options(void)
 {
@@ -73,7 +74,8 @@ static void options(void)
     printf("\t--wait-for-cr3\n");
     printf("\t--memmap <memmap> (if specified will save a snapshot for unique stacktraces)\n");
     printf("\t--stack-save-key <key> (specify to save snapshot only for specific stacktrace)\n");
-    printf("\t--stack-save-unique <# of frames> (specify to limit stack key calculation)\n");
+    printf("\t--stack-frames <# of frames> (specify to limit stack key calculation)\n");
+    printf("\t--stack-save-unique <file> (save unique stacks to file)\n");
     printf("\t--kvmi <socket>\n");
 }
 
@@ -163,7 +165,7 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
         printf("\t0x%lx\n", ip);
 
         // calculate stack key up to limit specified (0 = no limit)
-        if ( stack_save_unique >= counter )
+        if ( !stack_frames || stack_frames >= counter )
             key = Hash128to64(key, ip);
     }
 
@@ -175,15 +177,32 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
     {
         g_hash_table_insert(stack_tracker, GSIZE_TO_POINTER(key), GSIZE_TO_POINTER(1));
 
+        FILE *f = NULL;
+
+        if ( stack_unique && (f = fopen(stack_unique, "a")) )
+        {
+            fprintf(f, "-- key: 0x%lx --\n", key);
+
+            loop = stack;
+            while(loop)
+            {
+                fprintf(f, "0x%lx\n", GPOINTER_TO_SIZE(loop->data));
+                loop = loop->next;
+            }
+
+            fclose(f);
+            f = NULL;
+        }
+
         if ( memmap && (!stack_save_key || stack_save_key == key) )
         {
-            gchar *regf = g_strdup_printf("regs-%lu.csv", key);
-            gchar *mapf = g_strdup_printf("memmap-%lu", key);
-            gchar *vmcoref = g_strdup_printf("vmcore-%lu", key);
-            gchar *maccessf = g_strdup_printf("memaccess-%lu", key);
-            gchar *stackf = g_strdup_printf("stacktrace-%lu", key);
-            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-%lu.tar.gz regs-%lu.csv memmap-%lu vmcore-%lu memaccess-%lu stacktrace-%lu",
-                                         key, key, key, key, key, key);
+            gchar *regf = g_strdup_printf("regs-0x%lx.csv", key);
+            gchar *mapf = g_strdup_printf("memmap-0x%lx", key);
+            gchar *vmcoref = g_strdup_printf("vmcore-0x%lx", key);
+            gchar *maccessf = g_strdup_printf("memaccess-0x%lx", key);
+            gchar *stackf = g_strdup_printf("stacktrace-0x%lx", key);
+            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-0x%lx.tar.gz *%lx*",
+                                         key, key);
 
             // don't save the kfx log breakpoint in the snapshot
             vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &nop);
@@ -194,7 +213,7 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
             // add back the breakpoint
             vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &cc);
 
-            FILE *f = fopen(maccessf, "w");
+            f = fopen(maccessf, "w");
             if ( f )
             {
                 fprintf(f, "0x%lx\n", memaccess);
@@ -471,7 +490,8 @@ int main(int argc, char** argv)
         {"wait-for-cr3", no_argument, NULL, 'w'},
         {"memmap", required_argument, NULL, 'm'},
         {"stack-save-key", required_argument, NULL, 'k'},
-        {"stack-save-unique", required_argument, NULL, 'S'},
+        {"stack-frames", required_argument, NULL, 'F'},
+        {"stack-save-unique", required_argument, NULL, 'U'},
         {"kvmi", required_argument, NULL, 'K'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
@@ -522,8 +542,11 @@ int main(int argc, char** argv)
         case 'k':
             stack_save_key = strtoull(optarg, NULL, 0);
             break;
-        case 'S':
-            stack_save_unique = strtoull(optarg, NULL, 0);
+        case 'F':
+            stack_frames = strtoull(optarg, NULL, 0);
+            break;
+        case 'U':
+            stack_unique = optarg;
             break;
         case 'K':
             kvmi = optarg;

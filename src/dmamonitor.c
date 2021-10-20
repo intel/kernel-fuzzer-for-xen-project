@@ -88,7 +88,8 @@ static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_
             return;
 
         dma = gfn >> 12;
-    }
+    } else
+        dma >>= 12;
 
     gpointer key = GSIZE_TO_POINTER(dma);
     unsigned int counter = GPOINTER_TO_UINT(g_hash_table_lookup(dma_tracker, key));
@@ -630,14 +631,7 @@ int main(int argc, char** argv)
     }
 
     if ( VMI_SUCCESS == vmi_translate_ksym2v(vmi, "kfx_dma_log", &kfx_dma_log) )
-    {
         printf("kfx_dma_log @ 0x%lx\n", kfx_dma_log);
-
-        if ( VMI_FAILURE == vmi_write_8_va(vmi, kfx_dma_log, 0, &cc) )
-            goto done;
-        if ( VMI_FAILURE == vmi_write_8_va(vmi, kfx_dma_log + 1, 0, &ret) )
-            goto done;
-    }
 #ifdef HAVE_XEN
     else {
         if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )

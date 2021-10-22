@@ -27,6 +27,7 @@ static void usage(void)
     printf("\t--domain <domain name>\n");
     printf("\t--domid <domain id>\n");
     printf("\t--memmap <memmap>\n");
+    printf("\t--kvmi <socket>\n");
 }
 
 int main(int argc, char** argv)
@@ -37,13 +38,15 @@ int main(int argc, char** argv)
         {"domain", required_argument, NULL, 'd'},
         {"domid", required_argument, NULL, 'i'},
         {"memmap", required_argument, NULL, 'm'},
+        {"kvmi", required_argument, NULL, 'K'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:m:h";
+    const char* opts = "d:i:m:K:h";
     uint32_t domid = 0;
     char *domain = NULL;
-    const char *memmapf = NULL;
+    char *kvmi = NULL;
+    const char *memmap = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -56,7 +59,10 @@ int main(int argc, char** argv)
             domid = strtoul(optarg, NULL, 0);
             break;
         case 'm':
-            memmapf = optarg;
+            memmap = optarg;
+            break;
+        case 'K':
+            kvmi = optarg;
             break;
         case 'h': /* fall-through */
         default:
@@ -65,19 +71,17 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( (!domid && !domain) || !memmapf )
+    if ( (!domid && !domain) || !memmap )
     {
         usage();
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, domain, domid, NULL, false, false) )
+    if ( !setup_vmi(&vmi, domain, domid, NULL, kvmi, false, false) )
     {
         printf("Failed to init LibVMI\n");
         return -1;
     }
-
-    GHashTable *memmap = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     vmi_pause_vm(vmi);
 
@@ -85,27 +89,6 @@ int main(int argc, char** argv)
     {
         printf("More then 1 vCPUs are not supported\n");
         goto done;
-    }
-
-    if ( memmapf )
-    {
-        FILE *fp = fopen(memmapf, "r");
-        if ( !fp )
-            goto done;
-
-        size_t len = 0;
-        char *mapline = NULL;
-
-        while (getline(&mapline, &len, fp) != -1) {
-            gchar **split = g_strsplit(mapline, " ", 3);
-            size_t moffset = strtoull(split[1], NULL, 16);
-            size_t size = strtoull(split[2], NULL, 16);
-            g_strfreev(split);
-
-            g_hash_table_insert(memmap, GSIZE_TO_POINTER(moffset), GSIZE_TO_POINTER(size));
-        }
-
-        fclose(fp);
     }
 
     if ( !transplant_save_regs(vmi, "regs.csv") )
@@ -118,8 +101,6 @@ int main(int argc, char** argv)
         printf("Failed to save memory\n");
 
 done:
-    g_hash_table_destroy(memmap);
-
     vmi_resume_vm(vmi);
     vmi_destroy(vmi);
 

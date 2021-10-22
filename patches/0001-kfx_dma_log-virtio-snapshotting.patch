@@ -1,0 +1,147 @@
+From b5374f53e7d7f9d28c8a75e232e298a53e805780 Mon Sep 17 00:00:00 2001
+From: Tamas K Lengyel <tamas.lengyel@intel.com>
+Date: Wed, 13 Oct 2021 10:11:14 -0700
+Subject: [PATCH] Patch to facilitate VirtIO snapshotting on KVM-VMI
+
+Compile kernel with CONFIG_DMA_API_DEBUG.
+Boot kernel with dma_debug=kfx swiotlb=force.
+
+---
+ drivers/virtio/virtio_ring.c |  8 +++++---
+ kernel/dma/debug.c           | 22 ++++++++++++++++++++++
+ kernel/dma/debug.h           | 10 ++++++++++
+ kernel/dma/swiotlb.c         |  6 ++++++
+ 4 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
+index d4467ce74..627f8a46d 100644
+--- a/drivers/virtio/virtio_ring.c
++++ b/drivers/virtio/virtio_ring.c
+@@ -246,6 +246,8 @@ static inline bool virtqueue_use_indirect(struct virtqueue *_vq,
+ 
+ static bool vring_use_dma_api(struct virtio_device *vdev)
+ {
++	return true;
++
+ 	if (!virtio_has_dma_quirk(vdev))
+ 		return true;
+ 
+diff --git a/kernel/dma/debug.c b/kernel/dma/debug.c
+index 6c90c69e5..9a3b955b4 100644
+--- a/kernel/dma/debug.c
++++ b/kernel/dma/debug.c
+@@ -97,6 +97,7 @@ static DEFINE_SPINLOCK(free_entries_lock);
+ 
+ /* Global disable flag - will be set in case of an error */
+ static bool global_disable __read_mostly;
++static bool kfx __read_mostly;
+ 
+ /* Early initialization disable flag, set at the end of dma_debug_init */
+ static bool dma_debug_initialized __read_mostly;
+@@ -925,6 +926,10 @@ static __init int dma_debug_cmdline(char *str)
+ 		pr_info("debugging disabled on kernel command line\n");
+ 		global_disable = true;
+ 	}
++	if (strncmp(str, "kfx", 3) == 0) {
++               pr_info("enabling kfx dma debug function, switch @ %px\n", &kfx);
++               kfx = true;
++        }
+ 
+ 	return 0;
+ }
+@@ -1398,6 +1403,7 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+ 		entry->pfn = page_to_pfn(virt_to_page(virt));
+ 
+ 	add_dma_entry(entry);
++	kfx_dma_log(virt, 0, dma_addr, size, dev, 1);
+ }
+ 
+ void debug_dma_free_coherent(struct device *dev, size_t size,
+@@ -1425,6 +1431,7 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
+ 		return;
+ 
+ 	check_unmap(&ref);
++	kfx_dma_log(virt, 0, addr, size, dev, 0);
+ }
+ 
+ void debug_dma_map_resource(struct device *dev, phys_addr_t addr, size_t size,
+@@ -1586,3 +1593,18 @@ static int __init dma_debug_driver_setup(char *str)
+ 	return 1;
+ }
+ __setup("dma_debug_driver=", dma_debug_driver_setup);
++
++void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr, dma_addr_t dma, unsigned long size, struct device *dev, bool map)
++{
++       if (!kfx)
++               return;
++
++       register struct device *r8 asm ("r8") = dev;
++       register bool *r9 asm ("r9") = (bool*)map;
++
++       asm volatile ("int3"
++                  : "=a" (dev), "=D" (dev), "=S" (dev), "=d" (dev), "=c" (dev), "=r" (r8), "=r" (r9)
++                  : "a" (0x13371338), "D" (cpu_addr), "S" (phys_addr), "d" (dma), "c" (size), "r" (r8), "r" (r9)
++                  );
++}
++EXPORT_SYMBOL(kfx_dma_log);
+diff --git a/kernel/dma/debug.h b/kernel/dma/debug.h
+index 83643b301..55013808a 100644
+--- a/kernel/dma/debug.h
++++ b/kernel/dma/debug.h
+@@ -50,6 +50,10 @@ extern void debug_dma_sync_sg_for_cpu(struct device *dev,
+ extern void debug_dma_sync_sg_for_device(struct device *dev,
+ 					 struct scatterlist *sg,
+ 					 int nelems, int direction);
++
++extern void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr,
++                        dma_addr_t dma, unsigned long size,
++                        struct device *dev, bool map);
+ #else /* CONFIG_DMA_API_DEBUG */
+ static inline void debug_dma_map_page(struct device *dev, struct page *page,
+ 				      size_t offset, size_t size,
+@@ -118,5 +122,11 @@ static inline void debug_dma_sync_sg_for_device(struct device *dev,
+ 						int nelems, int direction)
+ {
+ }
++
++static inline void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr,
++                               dma_addr_t dma, unsigned long size,
++                               struct device *dev, bool map)
++{
++}
+ #endif /* CONFIG_DMA_API_DEBUG */
+ #endif /* _KERNEL_DMA_DEBUG_H */
+diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
+index c4ca040fd..2612f7ffb 100644
+--- a/kernel/dma/swiotlb.c
++++ b/kernel/dma/swiotlb.c
+@@ -57,6 +57,8 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/swiotlb.h>
+ 
++#include "debug.h"
++
+ #define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
+ 
+ /*
+@@ -642,6 +644,7 @@ void swiotlb_tbl_unmap_single(struct device *dev, phys_addr_t tlb_addr,
+ 		swiotlb_bounce(dev, tlb_addr, mapping_size, DMA_FROM_DEVICE);
+ 
+ 	swiotlb_release_slots(dev, tlb_addr);
++	kfx_dma_log(NULL, tlb_addr, 0, mapping_size, dev, 0);
+ }
+ 
+ void swiotlb_sync_single_for_device(struct device *dev, phys_addr_t tlb_addr,
+@@ -693,6 +696,9 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
+ 
+ 	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+ 		arch_sync_dma_for_device(swiotlb_addr, size, dir);
++
++	kfx_dma_log(NULL, swiotlb_addr, dma_addr, size, dev, 1);
++
+ 	return dma_addr;
+ }
+ 
+-- 
+2.25.1
+

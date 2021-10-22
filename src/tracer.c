@@ -579,7 +579,7 @@ bool make_sink_ready(void)
     vmi_instance_t sink_vmi = NULL;
     bool ret = false;
 
-    if ( !setup_vmi(&sink_vmi, NULL, sinkdomid, json, false, true) )
+    if ( !setup_vmi(&sink_vmi, NULL, sinkdomid, json, NULL, false, true) )
         return ret;
 
     if ( !sink_list )

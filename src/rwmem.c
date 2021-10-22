@@ -27,6 +27,7 @@ static void usage(void)
 
     printf("Optional:\n");
     printf("\t --pagetable <address> (-1 for physical memory access)\n");
+    printf("\t --kvmi <socket>\n");
 }
 
 int main(int argc, char** argv)
@@ -42,13 +43,15 @@ int main(int argc, char** argv)
         {"limit", required_argument, NULL, 'L'},
         {"file", required_argument, NULL, 'f'},
         {"pagetable", required_argument, NULL, 'p'},
+        {"kvmi", required_argument, NULL, 'K'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:j:r:w:L:f:p:";
+    const char* opts = "d:j:r:w:L:f:p:k:";
     bool read = false, write = false;
     size_t limit = 0;
     addr_t address = 0;
     char *filepath = NULL;
+    char *kvmi = NULL;
     uint32_t domid = 0;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
@@ -75,6 +78,9 @@ int main(int argc, char** argv)
         case 'p':
             pagetable = strtoull(optarg, NULL, 0);
             break;
+        case 'K':
+            kvmi = optarg;
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -88,7 +94,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if ( !setup_vmi(&vmi, NULL, domid, NULL, false, true) )
+    if ( !setup_vmi(&vmi, NULL, domid, NULL, kvmi, false, true) )
         return -1;
 
     ACCESS_CONTEXT(ctx,

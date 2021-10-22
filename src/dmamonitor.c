@@ -290,12 +290,11 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         event->x86_regs->rip += 1;
         return VMI_EVENT_RESPONSE_SET_REGISTERS;
     }
-    else if ( event->interrupt_event.gla == kfx_dma_log || event->x86_regs->rax == 0x13371338 )
+    else if ( event->x86_regs->rax == 0x13371338 )
     {
         /*
-         * Found the custom kfx_dma_log function (either by address or by mark):
-         *
-         * void kfx_dma_log(void* cpu_addr, phys_addr_t phys_addr, dma_addr_t dma, unsigned long size, struct device *dev, bool map);
+         * Found the custom kfx_dma_log function.
+         * See patches/0001-kfx_dma_log-virtio-snapshotting.patch
          */
 
         kfx_dma_log_cc = event->interrupt_event.gla;

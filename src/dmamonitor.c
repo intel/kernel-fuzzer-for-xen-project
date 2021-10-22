@@ -172,7 +172,7 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
 
     gpointer found = g_hash_table_lookup(stack_tracker, GSIZE_TO_POINTER(key));
 
-    printf("\tStack key: %lu %s\n", key, found ? "" : "new!");
+    printf("\tStack key: 0x%lx %s\n", key, found ? "" : "new!");
 
     if ( !found )
     {

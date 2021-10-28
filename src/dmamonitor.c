@@ -202,8 +202,8 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
             gchar *vmcoref = g_strdup_printf("vmcore-0x%lx", key);
             gchar *maccessf = g_strdup_printf("memaccess-0x%lx", key);
             gchar *stackf = g_strdup_printf("stacktrace-0x%lx", key);
-            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-0x%lx.tar.gz *%lx*",
-                                         key, key);
+            gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-0x%lx.tar.gz regs-0x%lx.csv memmap-0x%lx vmcore-0x%lx memaccess-0x%lx stacktrace-0x%lx",
+                                         key, key, key, key, key, key);
 
             // don't save the kfx log breakpoint in the snapshot
             vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &nop);

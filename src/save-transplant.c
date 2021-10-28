@@ -105,6 +105,8 @@ bool transplant_save_mem(vmi_instance_t vmi, const char *memmap_in, const char *
     if ( !fm )
         return false;
 
+    vmi_pagecache_flush(vmi);
+
     GHashTableIter iter;
     gpointer key, value;
 

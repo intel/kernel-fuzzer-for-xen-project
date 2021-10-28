@@ -17,6 +17,7 @@
 #include <glib.h>
 #include <capstone.h>
 
+#include "config.h"
 #include "signal.h"
 #include "vmi.h"
 #include "afl.h"

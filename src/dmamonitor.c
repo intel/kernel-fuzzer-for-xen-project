@@ -15,6 +15,8 @@
 #include <getopt.h>
 #include <glib.h>
 #include <glib/gprintf.h>
+
+#include "config.h"
 #include "vmi.h"
 #include "signal.h"
 #include "stack_unwind.h"

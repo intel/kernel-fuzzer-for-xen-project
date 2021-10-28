@@ -9,6 +9,8 @@
 #include <getopt.h>
 #include <capstone.h>
 #include <glib.h>
+
+#include "config.h"
 #include "vmi.h"
 #include "signal.h"
 

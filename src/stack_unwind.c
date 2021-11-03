@@ -19,7 +19,6 @@ struct wrapper
 static int _unw_access_mem(unw_addr_space_t as, unw_word_t addr, unw_word_t *valp, int __write, void *arg)
 {
     struct wrapper *w = (struct wrapper *)arg;
-    vmi_instance_t vmi = w->vmi;
     access_context_t *ctx = w->ctx;
     addr_t tmp = 0;
 

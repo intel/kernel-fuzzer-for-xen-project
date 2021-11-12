@@ -25,6 +25,9 @@ bool fork_vm(uint32_t domid, uint32_t *forkdomid)
     create.max_evtchn_port = 1023;
     create.max_grant_frames = LIBXL_MAX_GRANT_FRAMES_DEFAULT;
     create.max_maptrack_frames = LIBXL_MAX_MAPTRACK_FRAMES_DEFAULT;
+#if XEN_DOMCTL_INTERFACE_VERSION >= 0x00000014
+    create.grant_opts = 2;
+#endif
 
     if ( xc_domain_create(xc, forkdomid, &create) )
         return false;

@@ -168,40 +168,40 @@ static bool validate_flags()
 static void usage(void)
 {
     printf("Inputs required for SETUP step:\n");
-    printf("\t  --setup\n");
-    printf("\t  --domain <domain name> OR --domid <domain id>\n");
+    printf("\t  -s  --setup\n");
+    printf("\t  -d  --domain <domain name> OR -i  --domid <domain id>\n");
     printf("\tOptional inputs:\n");
-    printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
-    printf("\t  --magic-mark <magic number signaling start harness> (default is 0x13371337)\n");
-    printf("\t  --extended-mark (Use start harness to obtain target address & size)\n");
-    printf("\t  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
+    printf("\t  -H  --harness cpuid|breakpoint (default is cpuid)\n");
+    printf("\t  -m  --magic-mark <magic number signaling start harness> (default is 0x13371337)\n");
+    printf("\t  -c  --extended-mark (Use start harness to obtain target address & size)\n");
+    printf("\t  -S  --start-byte <byte> (used to replace the starting breakpoint harness)\n");
 
     printf("\n\n");
     printf("Inputs required for FUZZING step:\n");
-    printf("\t  --input <path to input file> or @@ with AFL\n");
-    printf("\t  --input-limit <limit input size> (XOR --extended-mark)\n");
-    printf("\t  --address <kernel virtual address to inject input to> (XOR --extended-mark)\n");
-    printf("\t  --domain <domain name> OR --domid <domain id>\n");
-    printf("\t  --json <path to kernel debug json> (needed only if default sink list is used or --sink is used)\n");
+    printf("\t  -f  --input <path to input file> or @@ with AFL\n");
+    printf("\t  -L  --input-limit <limit input size> (XOR --extended-mark)\n");
+    printf("\t  -a  --address <kernel virtual address to inject input to> (XOR --extended-mark)\n");
+    printf("\t  -d  --domain <domain name> OR -i, --domid <domain id>\n");
+    printf("\t  -j  --json <path to kernel debug json> (needed only if default sink list is used or --sink is used)\n");
     printf("\tOptional inputs:\n");
-    printf("\t  --extended-mark (Use start harness to obtain target address & size)\n");
-    printf("\t  --limit <limit FUZZING execution to # of CF instructions>\n");
-    printf("\t  --harness cpuid|breakpoint (default is cpuid)\n");
-    printf("\t  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
-    printf("\t  --refork <create new fork after # of executions>\n");
-    printf("\t  --keep (keep VM fork after kfx exits)\n");
-    printf("\t  --nocov (disable coverage tracing)\n");
-    printf("\t  --ptcov (use IPT coverage tracing)\n");
-    printf("\t  --detect-doublefetch <kernel virtual address on page to detect doublefetch>\n");
-    printf("\t  --sink <function_name>\n");
-    printf("\t  --sink-vaddr <virtual address>\n");
-    printf("\t  --sink-paddr <physical address>\n");
-    printf("\t  --record-codecov <path to save file>\n");
+    printf("\t  -c  --extended-mark (Use start harness to obtain target address & size)\n");
+    printf("\t  -f  --limit <limit FUZZING execution to # of CF instructions>\n");
+    printf("\t  -H  --harness cpuid|breakpoint (default is cpuid)\n");
+    printf("\t  -O  --loopmode (Run in a loop without coverage trace, for example using /dev/urandom as input)\n");
+    printf("\t  -r  --refork <create new fork after # of executions>\n");
+    printf("\t  -K  --keep (keep VM fork after kfx exits)\n");
+    printf("\t  -N  --nocov (disable coverage tracing)\n");
+    printf("\t  -t  --ptcov (use IPT coverage tracing)\n");
+    printf("\t  -D  --detect-doublefetch <kernel virtual address on page to detect doublefetch>\n");
+    printf("\t  -n  --sink <function_name>\n");
+    printf("\t  -V  --sink-vaddr <virtual address>\n");
+    printf("\t  -P  --sink-paddr <physical address>\n");
+    printf("\t  -R  --record-codecov <path to save file>\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
-    printf("\t--debug\n");
-    printf("\t--logfile <path to logfile>\n");
+    printf("\t-v, --debug\n");
+    printf("\t-F, --logfile <path to logfile>\n");
 }
 
 int main(int argc, char** argv)

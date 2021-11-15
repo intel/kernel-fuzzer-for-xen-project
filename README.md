@@ -9,9 +9,9 @@ Minimum hardware requirements: Intel CPU with VT-x and EPT enabled.
 This project is licensed under the terms of the MIT license
 
 # Presentations
-
-[![OSSummit2020](ossummit.png)](https://www.youtube.com/watch?v=3MYo8ctD_aU)
-[![DEFCON29](defcon.png)](https://www.youtube.com/watch?v=_dXC_I2ybr4)
+[![LSS2021](https://img.youtube.com/vi/m_dH59lrj5M/0.jpg)](https://www.youtube.com/watch?v=m_dH59lrj5M)
+[![OSSummit2020](https://img.youtube.com/vi/3MYo8ctD_aU/0.jpg)](https://www.youtube.com/watch?v=3MYo8ctD_aU)
+[![DEFCON29](https://img.youtube.com/vi/_dXC_I2ybr4/0.jpg)](https://www.youtube.com/watch?v=_dXC_I2ybr4)
 
 # Capability & Limitations
 
@@ -338,10 +338,10 @@ You can insert the harness before and after the code segment you want to fuzz:
 
 # 15. Setup the VM for fuzzing <a name="section-15"></a>
 ---------------------------------
-Start `./kfx`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it.
+Start `./kfx`  with the `--setup` option specified. This will wait for the domain to issue the harness CPUID and will leave the domain paused. This ensures that the VM is at the starting location of the code we want to fuzz when we fork it. To get the target address and size from the harness, use `-c` option.
 
 ```
-sudo ./kfx --domain debian --json ~/debian.json --setup
+sudo ./kfx --domain debian --json ~/debian.json --setup -c
 ```
 
 You may optionally want to do this in a `screen` session, or you will need a separate shell to continue.

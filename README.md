@@ -9,9 +9,9 @@ Minimum hardware requirements: Intel CPU with VT-x and EPT enabled.
 This project is licensed under the terms of the MIT license
 
 # Presentations
-
-[![OSSummit2020](ossummit.png)](https://www.youtube.com/watch?v=3MYo8ctD_aU)
-[![DEFCON29](defcon.png)](https://www.youtube.com/watch?v=_dXC_I2ybr4)
+[![LSS2021](https://img.youtube.com/vi/m_dH59lrj5M/0.jpg)](https://www.youtube.com/watch?v=m_dH59lrj5M)
+[![OSSummit2020](https://img.youtube.com/vi/3MYo8ctD_aU/0.jpg)](https://www.youtube.com/watch?v=3MYo8ctD_aU)
+[![DEFCON29](https://img.youtube.com/vi/_dXC_I2ybr4/0.jpg)](https://www.youtube.com/watch?v=_dXC_I2ybr4)
 
 # Capability & Limitations
 

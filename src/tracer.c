@@ -629,6 +629,12 @@ bool make_sink_ready(void)
             continue;
         }
 
+        if ( VMI_FAILURE == vmi_read_pa(sink_vmi, s->paddr, 1, &s->old_insn, NULL) )
+        {
+            if ( debug ) printf("Failed to backup instruction for %s PA 0x%lx\n", s->function, s->paddr);
+            goto done;
+        }
+
         if ( VMI_FAILURE == vmi_write_pa(sink_vmi, s->paddr, 1, &cc, NULL) )
         {
             if ( debug ) printf("Failed to write %s PA 0x%lx\n", s->function, s->paddr);
@@ -648,4 +654,25 @@ bool make_sink_ready(void)
 done:
     vmi_destroy(sink_vmi);
     return ret;
+}
+
+/* Clean up sink breakpoints from the fuzzing VM */
+void teardown_sinks(vmi_instance_t vmi)
+{
+    GSList *tmp;
+    for ( tmp=sink_list; tmp; tmp=tmp->next )
+    {
+        struct sink *s = (struct sink*)tmp->data;
+        if (s->paddr)
+        {
+            if ( VMI_FAILURE == vmi_write_pa(vmi, s->paddr, 1, &s->old_insn, NULL) )
+            {
+                fprintf(stderr, "Failed to tear down sink %s PA 0x%lx\n", s->function, s->paddr);
+            }
+            else if ( debug )
+            {
+                printf("Cleaned up sink %s\n", s->function);
+            }
+        }
+    }
 }

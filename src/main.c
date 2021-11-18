@@ -494,6 +494,8 @@ int main(int argc, char** argv)
         }
     }
 
+    if ( keep )
+        teardown_sinks(vmi);
     close_trace(vmi);
     vmi_destroy(vmi);
 

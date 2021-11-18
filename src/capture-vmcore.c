@@ -5,12 +5,12 @@
  * kernel crash (e.g oops_begin).
  */
 #include <elf.h>
+#include <getopt.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
-#include <libvmi/libvmi.h>
+#include <sys/stat.h>
 
 #include "vmi.h"
 #include "signal.h"
@@ -66,7 +66,7 @@ static bool resume_and_break_at_kexec(vmi_instance_t vmi)
 static bool append_mem_to_file(vmi_instance_t vmi, addr_t pa, size_t size, FILE *out)
 {
     static char buf[4096];
-    size_t total_read;
+    size_t total_read = 0;
     while ( total_read < size )
     {
         size_t to_read, read;
@@ -74,7 +74,7 @@ static bool append_mem_to_file(vmi_instance_t vmi, addr_t pa, size_t size, FILE 
         if ( (VMI_FAILURE == vmi_read_pa(vmi, pa + total_read, to_read, buf, &read)) ||
             (to_read != read) )
         {
-            fprintf(stderr, "Failed to read %d bytes at 0x%lx\n", size, pa);
+            fprintf(stderr, "Failed to read %zu bytes at 0x%lx\n", size, pa);
             return false;
         }
         fwrite(buf, to_read, 1, out);
@@ -128,7 +128,7 @@ static bool dump_vmcore(vmi_instance_t vmi, addr_t elf_load_addr, addr_t elf_hea
 
         if ( VMI_FAILURE == vmi_read_pa(vmi, phdr[seg].p_paddr, sizeof(nhdr), &nhdr, &read) )
         {
-            fprintf(stderr, "Failed to read %d bytes at 0x%lx\n", sizeof(nhdr), phdr[seg].p_paddr);
+            fprintf(stderr, "Failed to read %zu bytes at 0x%lx\n", sizeof(nhdr), phdr[seg].p_paddr);
             return false;
         }
         fwrite(&nhdr, sizeof(nhdr), 1, out);
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
     const char* opts = "d:i:j:h";
     uint32_t domid = 0;
     char *domain = NULL;
-    char *json;
+    char *json = NULL;
     char *outfile = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
@@ -267,6 +267,7 @@ int main(int argc, char** argv)
     if ( !resume_and_break_at_kexec(vmi) )
         goto done;
     out = fopen(outfile, "w+");
+    chmod(outfile, 0644);
     printf("Dumping vmcore. This may take some time...\n");
     if ( !dump_vmcore(vmi, elf_load_addr, elf_headers_sz, out) )
         goto done;

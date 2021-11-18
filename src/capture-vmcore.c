@@ -266,8 +266,8 @@ int main(int argc, char** argv)
     printf("Resuming VM until kdump kexec to populate/update all segments\n");
     if ( !resume_and_break_at_kexec(vmi) )
         goto done;
+    umask(S_IWGRP|S_IWOTH);
     out = fopen(outfile, "w+");
-    chmod(outfile, 0644);
     printf("Dumping vmcore. This may take some time...\n");
     if ( !dump_vmcore(vmi, elf_load_addr, elf_headers_sz, out) )
         goto done;

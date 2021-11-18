@@ -12,6 +12,7 @@ struct sink {
     addr_t vaddr;
     addr_t paddr;
     struct sink_handler *handler;
+    uint8_t old_insn;
 };
 
 /*

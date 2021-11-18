@@ -412,6 +412,8 @@ kfx --domain ubuntu-20.04 --json 5.4.0.json --address 0xffff8880334652b0 --input
 
 With the `--debug` flag specified you will see a verbose output of kfx and you will be able to see which sink point the input reaches. The `--keep` option will leave the VM forks paused after kfx exits, so you can examine the callstack using GDB:
 
+## Online debugging
+
 ```
 gdbsx -a <vm fork domid> 64 4567 &
 gdb vmlinux -ex 'target remote :4567'
@@ -436,6 +438,21 @@ cat stepper.log | awk '{ print $2 }' | addr2line -e vmlinux -f -p
 ```
 
 In the above snipped we manually created a fork VM from the parent and then wrote the crash-causing input into the target buffer. These are exactly the steps kfx performs when it performs fuzzing as well. The stepper tool enable singlestepping of the entire VM and runs until `limit` number of instructions have been executed or the CPU reaches an instruction specified in `stop-on-address`. Here you want to specify the sink's address that you know will be reached by this execution from the above step when we ran `kfx` with `--debug`. The stepper output simply logs each instructions that was executed, so we store that log in a file. As the last step, we just look up each address in the kernel's debug image using `addr2line` the get the exact function name and source line that was executed. This is often more accurate to pinpoint the crashing code-site then a stack backtrace would be.
+
+## Offline debugging
+
+You can use the included `capture-vmcore` tool to capture a `vmcore` from the forked VM. Some prerequisites for this to work:
+
+* An arbitrary kdump kernel must be loaded prior to running kfx. This can be done by adding a `crashkernel=128M` to the kernel cmdline and running `kexec -a -p /boot/vmlinux --reuse-cmdline` from userspace.
+* The sink point must (forcibly) result in a kernel crash. I.e unpausing the VM at the sink point should result in a kdump kexec attempt.
+
+Capture, compress, and analyze the vmcore using:
+
+```
+capture-vmcore --domid <vm fork domid> --json 5.4.0.json --out /tmp/vmcore
+makedumpfile -c -d 31 /tmp/vmcore -x vmlinux /tmp/dumpfile
+crash vmlinux /tmp/dumpfile 
+```
 
 # 22. Advanced harnessing <a name="section-22"></a>
 ---------------------------------

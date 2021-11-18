@@ -9,6 +9,7 @@
 #include <libvmi/libvmi.h>
 
 bool make_sink_ready(void);
+void teardown_sinks(vmi_instance_t vmi);
 
 bool setup_trace(vmi_instance_t vmi);
 bool start_trace(vmi_instance_t vmi, addr_t address);

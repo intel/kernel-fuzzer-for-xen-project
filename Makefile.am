@@ -66,6 +66,12 @@ save_transplant_SOURCES = src/save-transplant-main.c src/save-transplant.c src/s
 save_transplant_LDADD = $(LIBS) $(VMI_LIBS) $(GLIB_LIBS)
 save_transplant_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(GLIB_CFLAGS)
 
+bin_PROGRAMS +=  capture-vmcore
+capture_vmcore_SOURCES = src/capture-vmcore.c src/vmi.c src/vmi.h src/signal.c src/signal.h
+capture_vmcore_LDADD = $(LIBS) $(VMI_LIBS)
+capture_vmcore_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
+
+
 ACLOCAL_AMFLAGS=-I m4
 EXTRA_DIST = configure.ac README.md \
              patches/0001-AFL-Xen-mode.patch \

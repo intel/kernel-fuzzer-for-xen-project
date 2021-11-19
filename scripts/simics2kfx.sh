@@ -40,13 +40,13 @@ EOM
 echo "$simicsinfo" > simics-info
 $simics -no-gui -no-win -e "run-command-file simics-info" 1>/dev/null 2>&1
 rm simics-info
-
+rm vmcore 2>/dev/null || :
 rm memmap 2>/dev/null || :
 touch memmap
 touch vmcore
 fileoffset=0x0
 while read p; do
-    ram=$(echo -n "$p" | grep ".ram")
+    ram=$(echo -n "$p" | grep "\.ram")
     if [ ! -z "$ram" ]; then
         addr=$(echo -n "$ram" | awk -F'│' '{ print $2 }')
         size=$(echo -n "$ram" | awk -F'│' '{ print $3 }')
@@ -97,16 +97,16 @@ regs=(rax rbx rcx           \
       xcr0)
 
 for reg in ${regs[@]}; do
-    val=$(cat simics-config | grep -m1 "$reg:" | awk '{ print $2 }')
+    val=$(cat simics-config | grep -m1 -P "\t$reg:" | awk '{ print $2 }')
     echo "$reg,$val" >> regs.csv
 done
 
 regs=(cs ds es fs gs ss ldtr tr)
 for reg in ${regs[@]}; do
-    selector=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $3 }')
-    base=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $6 }')
-    limit=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $9 }')
-    attr=$(cat simics-regs | grep -m1 "$reg" | tr -d ',' | awk '{ print $12 }')
+    selector=$(cat simics-regs | grep -m1 "$reg   =" | tr -d ',' | awk '{ print $3 }')
+    base=$(cat simics-regs | grep -m1 "$reg   =" | tr -d ',' | awk '{ print $6 }')
+    limit=$(cat simics-regs | grep -m1 "$reg   =" | tr -d ',' | awk '{ print $9 }')
+    attr=$(cat simics-regs | grep -m1 "$reg   =" | tr -d ',' | awk '{ print $12 }')
 
     # The Simics segment attributes are in VT-x representation but shifted right by 8
     # Convert to Xen representation

@@ -456,9 +456,10 @@ bool load_regs(char *reg, char *vmcore)
     regs->cr3 = cpu->cr[3];
 
 #define X86_CR4_UMIP       0x00000800
+#define X86_CR4_VMXE       0x00002000
 #define X86_CR4_PKE        0x00400000
 #define X86_CR4_CET        0x00800000
-    regs->cr4 = cpu->cr[4] & ~(X86_CR4_UMIP | X86_CR4_PKE | X86_CR4_CET);
+    regs->cr4 = cpu->cr[4] & ~(X86_CR4_UMIP | X86_CR4_VMXE | X86_CR4_PKE | X86_CR4_CET);
 
     regs->msr_efer = cpu->efer;
     regs->msr_star = cpu->star;

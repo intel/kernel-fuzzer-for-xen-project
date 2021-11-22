@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
+#define LIBVMI_EXTRA_GLIB
 #include "vmi.h"
 
 vmi_instance_t vmi;
@@ -15,6 +16,24 @@ page_mode_t pm;
 addr_t target_pagetable;
 addr_t start_rip;
 int interrupted;
+
+static void do_list_pages(addr_t pagetable)
+{
+    printf("Mappings in pagetable at 0x%lx:\n", pagetable);
+    GSList *va_pages = vmi_get_va_pages(vmi, pagetable);
+    GSList *loop = va_pages;
+    while (loop)
+    {
+        page_info_t *info = loop->data;
+        loop = loop->next;
+
+        printf("\t0x%lx (size 0x%x)\n", info->vaddr, info->size);
+
+        free(info);
+    }
+
+    g_slist_free(va_pages);
+}
 
 static void usage(void)
 {
@@ -28,6 +47,7 @@ static void usage(void)
     printf("Optional:\n");
     printf("\t --pagetable <address> (-1 for physical memory access)\n");
     printf("\t --kvmi <socket>\n");
+    printf("\t --list-pages\n");
 }
 
 int main(int argc, char** argv)
@@ -44,10 +64,11 @@ int main(int argc, char** argv)
         {"file", required_argument, NULL, 'f'},
         {"pagetable", required_argument, NULL, 'p'},
         {"kvmi", required_argument, NULL, 'K'},
+        {"list-pages", no_argument, NULL, 'l'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:j:r:w:L:f:p:k:";
-    bool read = false, write = false;
+    const char* opts = "d:j:r:w:L:f:p:k:l";
+    bool read = false, write = false, list_pages = false;
     size_t limit = 0;
     addr_t address = 0;
     char *filepath = NULL;
@@ -81,6 +102,9 @@ int main(int argc, char** argv)
         case 'K':
             kvmi = optarg;
             break;
+        case 'l':
+            list_pages = true;
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -88,7 +112,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( !domid || (!read && !write) || (read && write) || !address || !limit || !filepath )
+    if ( !domid || (!read && !write && !list_pages) || (read && write) || (!list_pages && (!address || !limit || !filepath)) )
     {
         usage();
         return -1;
@@ -112,6 +136,12 @@ int main(int argc, char** argv)
         }
         else
             ctx.dtb = pagetable;
+    }
+
+    if (list_pages )
+    {
+        do_list_pages(ctx.pt);
+        goto done;
     }
 
     size_t fsize = 0;

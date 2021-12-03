@@ -41,8 +41,8 @@ endif
 
 bin_PROGRAMS +=  rwmem
 rwmem_SOURCES = src/rwmem.c src/vmi.c src/vmi.h
-rwmem_LDADD = $(LIBS) $(VMI_LIBS)
-rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS)
+rwmem_LDADD = $(LIBS) $(VMI_LIBS) $(GLIB_LIBS)
+rwmem_CFLAGS = $(CFLAGS) $(VMI_CFLAGS) $(GLIB_CFLAGS)
 
 bin_PROGRAMS += stepper
 stepper_SOURCES = src/stepper.c src/vmi.c src/vmi.h src/signal.c src/signal.h

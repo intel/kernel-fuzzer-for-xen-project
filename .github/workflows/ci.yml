@@ -57,7 +57,7 @@ jobs:
           sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
           sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
           sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
-          sudo apt-get install -y markdown pandoc transfig tgif fig2dev
+          sudo apt-get install -y markdown pandoc transfig tgif fig2dev ninja-build
           sudo ln -s /usr/include/x86_64-linux-gnu/pci /usr/include/pci
           cd xen
           echo CONFIG_EXPERT=y > xen/.config
@@ -195,7 +195,7 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Delete old release
-        uses: dev-drprasad/delete-older-releases@v0.1.0
+        uses: dev-drprasad/delete-older-releases@v0.2.0
         if: github.ref == 'refs/heads/master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

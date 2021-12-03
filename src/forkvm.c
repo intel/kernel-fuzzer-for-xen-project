@@ -19,12 +19,16 @@ bool fork_vm(uint32_t domid, uint32_t *forkdomid)
     create.flags |= XEN_DOMCTL_CDF_hvm;
     create.flags |= XEN_DOMCTL_CDF_hap;
     create.flags |= XEN_DOMCTL_CDF_oos_off;
+    create.flags |= XEN_DOMCTL_CDF_nested_virt;
     create.arch.emulation_flags = (XEN_X86_EMU_ALL & ~XEN_X86_EMU_VPCI);
     create.ssidref = 11; // SECINITSID_DOMU
     create.max_vcpus = vcpus;
     create.max_evtchn_port = 1023;
     create.max_grant_frames = LIBXL_MAX_GRANT_FRAMES_DEFAULT;
     create.max_maptrack_frames = LIBXL_MAX_MAPTRACK_FRAMES_DEFAULT;
+#if XEN_DOMCTL_INTERFACE_VERSION >= 0x00000014
+    create.grant_opts = 2;
+#endif
 
     if ( xc_domain_create(xc, forkdomid, &create) )
         return false;

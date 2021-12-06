@@ -25,9 +25,16 @@ static void do_list_pages(addr_t pagetable)
     while (loop)
     {
         page_info_t *info = loop->data;
+        uint64_t entry = info->size == VMI_PS_4KB ? info->x86_ia32e.pte_value :
+                         info->size == VMI_PS_2MB ? info->x86_ia32e.pgd_value :
+                         info->x86_ia32e.pdpte_value;
+
         loop = loop->next;
 
-        printf("\t0x%lx (size 0x%x)\n", info->vaddr, info->size);
+        printf("\t0x%lx [0x%x %s%c]\n",
+               info->vaddr, info->size,
+               READ_WRITE(entry) ? "rw" : "r-",
+               NX(entry) ? '-' : 'x');
 
         free(info);
     }

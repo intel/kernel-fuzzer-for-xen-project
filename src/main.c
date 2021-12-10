@@ -197,6 +197,7 @@ static void usage(void)
     printf("\t  -V  --sink-vaddr <virtual address>\n");
     printf("\t  -P  --sink-paddr <physical address>\n");
     printf("\t  -R  --record-codecov <path to save file>\n");
+    printf("\t  -G  --fork-sig <unique string token used in naming forks>\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -236,9 +237,10 @@ int main(int argc, char** argv)
         {"sink-paddr", required_argument, NULL, 'P'},
         {"record-codecov", required_argument, NULL, 'R'},
         {"record-memaccess", required_argument, NULL, 'M'},
+        {"fork-sig", required_argument, NULL, 'G'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKND";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:G:svchtOKND";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -250,6 +252,7 @@ int main(int argc, char** argv)
     input_path = NULL;
     input_size = 0;
     input_limit = 0;
+    fork_sig = NULL;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -345,6 +348,9 @@ int main(int argc, char** argv)
         case 'M':
             record_memaccess = optarg;
             break;
+        case 'G':
+            fork_sig = optarg;
+            break;
         case 'h': /* fall-through */
         default:
             usage();
@@ -400,6 +406,12 @@ int main(int argc, char** argv)
         goto done;
     }
 
+    if ( libxl_ctx_alloc(&xl, LIBXL_VERSION, 0, NULL) )
+    {
+        fprintf(stderr, "Failed to initialize libxl. This is non-fatal\n");
+        xl = NULL;
+    }
+
     /*
      * To reduce the churn of placing the sink breakpoints into the VM fork's memory
      * for each fuzzing iteration (which requires full-page copies for each breakpoint)
@@ -410,13 +422,13 @@ int main(int argc, char** argv)
      *
      * Fuzzing is performed from a further fork made from sinkdomid, in fuzzdomid.
      */
-    if ( !fork_vm(domid, &sinkdomid) )
+    if ( !fork_vm(domid, fork_sig, "sink", &sinkdomid) )
     {
         fprintf(stderr, "Domain fork failed, sink domain not up\n");
         goto done;
     }
 
-    if ( !fork_vm(sinkdomid, &fuzzdomid) )
+    if ( !fork_vm(sinkdomid, fork_sig, "fuzz", &fuzzdomid) )
     {
         fprintf(stderr, "Domain fork failed, fuzz domain not up\n");
         goto done;
@@ -489,7 +501,7 @@ int main(int argc, char** argv)
             iter = 0;
             fuzzdomid = 0;
 
-            if ( fork_vm(sinkdomid, &fuzzdomid) )
+            if ( fork_vm(sinkdomid, fork_sig, "fuzz", &fuzzdomid) )
                 make_fuzz_ready();
         }
     }
@@ -515,6 +527,11 @@ done:
             g_slist_free(sink_list);
     }
 
+    if ( xl )
+    {
+        libxl_ctx_free(xl);
+        xl = NULL;
+    }
     xc_interface_close(xc);
     cs_close(&cs_handle);
     if ( input_file )

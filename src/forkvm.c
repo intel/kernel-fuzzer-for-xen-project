@@ -9,8 +9,34 @@
 
 extern int vcpus;
 extern xc_interface *xc;
+extern libxl_ctx *xl;
+static char *ancestor_domname = NULL;
+static uint32_t ancestor_domid = 0;
 
-bool fork_vm(uint32_t domid, uint32_t *forkdomid)
+static bool rename_fork(uint32_t domid, char *sig, char *flavor, uint32_t forkdomid)
+{
+    char forkname[64];
+    uint32_t dup_domid;
+    if ( !xl )
+        return false;
+    if ( !ancestor_domname )
+        /* Try to initialize it once */
+        if ( !(ancestor_domname = libxl_domid_to_name(xl, domid)) )
+            return false;
+    if ( !ancestor_domid )
+        ancestor_domid = domid;
+
+    if ( sig )
+        snprintf(forkname, sizeof(forkname), "%s-%d-%s-%s", ancestor_domname, ancestor_domid, flavor, sig);
+    else
+        snprintf(forkname, sizeof(forkname), "%s-%d-%s-%d", ancestor_domname, ancestor_domid, flavor, forkdomid);
+    /* Check if this name is taken already because libxl can segfault if it is. */
+    if ( !libxl_name_to_domid(xl, forkname, &dup_domid) )
+        return false;
+    return !libxl_domain_rename(xl, forkdomid, NULL, forkname);
+}
+
+bool fork_vm(uint32_t domid, char *fork_sig, char *fork_flavor, uint32_t *forkdomid)
 {
     if ( !domid || !forkdomid )
         return false;
@@ -38,6 +64,8 @@ bool fork_vm(uint32_t domid, uint32_t *forkdomid)
         xc_domain_destroy(xc, *forkdomid);
         return false;
     }
+
+    rename_fork(domid, fork_sig, fork_flavor, *forkdomid);
 
     return true;
 }

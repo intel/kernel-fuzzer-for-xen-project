@@ -23,6 +23,9 @@ AS_IF([test x"$with_xen" = x"yes"], [
     PKG_CHECK_MODULES([XENFMEM], [xenforeignmemory >= 1.3],[],[AC_MSG_ERROR(libxenforeignmemory not found. Install missing package and re-run)])
     AC_CHECK_HEADERS([libxl.h], [], [AC_MSG_ERROR(libxl.h not found. Install missing package and re-run)])
     AC_CHECK_HEADERS([xen/xen.h], [], [AC_MSG_ERROR(xen/xen.h not found. Install missing package and re-run)])
+    AC_CHECK_HEADERS([xenstore.h], [], [AC_MSG_ERROR(xenstore.h not found. Install missing package and re-run)])
+
+    AC_CHECK_LIB(xenstore, xs_open, [], [AC_MSG_ERROR([xenstore not found])])
 
     AC_DEFINE([HAVE_XEN], 1, [Have Xen])
 

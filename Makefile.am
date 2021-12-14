@@ -13,10 +13,10 @@ if WITH_XEN
                     src/ptcov.c src/ptcov.h \
                     src/kasan_handler.c \
                     src/sink.h src/sink_handler.h
-    kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(XENFMEM_LIBS) $(GLIB_LIBS)
+    kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(LIBXL_LIBS) $(XENFMEM_LIBS) $(GLIB_LIBS)
     kfx_CFLAGS  = -Wall -Wextra -fstack-protector -Wno-override-init -Wno-unused-variable \
               -DCODECOV_SIGNAL \
-              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(XENFMEM_CFLAGS) $(GLIB_CFLAGS)
+              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(LIBXL_CFLAGS) $(XENFMEM_CFLAGS) $(GLIB_CFLAGS)
 
 if STATIC_LIBXDC
         noinst_LTLIBRARIES= libxdc.la
@@ -30,8 +30,8 @@ endif
 
     bin_PROGRAMS += forkvm
     forkvm_SOURCES = src/forkvm_main.c src/forkvm.c src/forkvm.h
-    forkvm_LDADD = $(LIBXC_LIBS)
-    forkvm_CFLAGS = $(LIBXC_CFLAGS)
+    forkvm_LDADD = $(LIBXC_LIBS) $(LIBXL_LIBS)
+    forkvm_CFLAGS = $(LIBXC_CFLAGS) $(LIBXL_CFLAGS)
 
     bin_PROGRAMS += xen-transplant
     xen_transplant_SOURCES = src/xen-transplant.c

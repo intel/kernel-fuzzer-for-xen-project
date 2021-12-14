@@ -13,6 +13,7 @@ size_t input_size;
 size_t input_limit;
 unsigned char *input;
 uint32_t domid, sinkdomid, fuzzdomid;
+char* fork_sig;
 bool afl;
 bool parent_ready;
 bool crash;
@@ -29,6 +30,7 @@ GHashTable *codecov;
 GHashTable *memaccess;
 
 xc_interface *xc;
+libxl_ctx *xl;
 vmi_instance_t parent_vmi, vmi;
 os_t os;
 addr_t target_pagetable;

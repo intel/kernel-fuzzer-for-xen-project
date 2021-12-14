@@ -7,6 +7,7 @@
 #include "forkvm.h"
 
 xc_interface *xc;
+libxl_ctx *xl;
 xc_dominfo_t info;
 int vcpus;
 uint32_t domid, forkdomid;
@@ -21,6 +22,8 @@ int main(int argc, char** argv)
 
     if ( !(xc = xc_interface_open(0, 0, 0)) )
         return -1;
+    if ( libxl_ctx_alloc(&xl, LIBXL_VERSION, 0, NULL) )
+        xl = NULL;
 
     domid = atoi(argv[1]);
 
@@ -28,12 +31,17 @@ int main(int argc, char** argv)
     {
         vcpus = ++info.max_vcpu_id;
 
-        if ( fork_vm(domid, &forkdomid) )
+        if ( fork_vm(domid, NULL, "forkvm", &forkdomid) )
             printf("Fork VM id: %u\n", forkdomid);
         else
             printf("Forking VM %u failed\n", domid);
     }
 
+    if ( xl )
+    {
+        libxl_ctx_free(xl);
+        xl = NULL;
+    }
     xc_interface_close(xc);
     return 0;
 }

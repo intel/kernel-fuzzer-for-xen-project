@@ -35,6 +35,7 @@ extern size_t input_size;
 extern size_t input_limit;
 extern unsigned char *input;
 extern uint32_t domid, sinkdomid, fuzzdomid;
+extern char* fork_sig;
 extern bool afl;
 extern bool parent_ready;
 extern bool crash;
@@ -51,6 +52,7 @@ extern GHashTable *codecov;
 extern GHashTable *memaccess;
 
 extern xc_interface *xc;
+extern libxl_ctx *xl;
 extern vmi_instance_t vmi;
 extern os_t os;
 extern addr_t target_pagetable;

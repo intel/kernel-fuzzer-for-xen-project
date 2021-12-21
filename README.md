@@ -179,6 +179,7 @@ sysctl --system
 Enable NAT and save the iptables rule, make sure to change eth0 to match your interface name facing the internet:
 ```
 su -
+iptables -A FORWARD -j ACCEPT
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 apt-get install iptables-persistent
 ```

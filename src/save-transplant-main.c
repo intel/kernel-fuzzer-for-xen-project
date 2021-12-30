@@ -52,22 +52,22 @@ int main(int argc, char** argv)
     {
         switch(c)
         {
-        case 'd':
-            domain = optarg;
-            break;
-        case 'i':
-            domid = strtoul(optarg, NULL, 0);
-            break;
-        case 'm':
-            memmap = optarg;
-            break;
-        case 'K':
-            kvmi = optarg;
-            break;
-        case 'h': /* fall-through */
-        default:
-            usage();
-            return -1;
+            case 'd':
+                domain = optarg;
+                break;
+            case 'i':
+                domid = strtoul(optarg, NULL, 0);
+                break;
+            case 'm':
+                memmap = optarg;
+                break;
+            case 'K':
+                kvmi = optarg;
+                break;
+            case 'h': /* fall-through */
+            default:
+                usage();
+                return -1;
         };
     }
 

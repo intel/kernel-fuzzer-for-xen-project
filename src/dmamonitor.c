@@ -90,7 +90,8 @@ static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_
             return;
 
         dma = gfn >> 12;
-    } else
+    }
+    else
         dma >>= 12;
 
     gpointer key = GSIZE_TO_POINTER(dma);
@@ -111,10 +112,13 @@ static void set_dma_permissions(vmi_instance_t vmi, addr_t dma, addr_t cr3, vmi_
             printf("EPT permissions relaxed for page at 0x%lx\n", dma);
 
             g_hash_table_remove(dma_tracker, key);
-        } else
+        }
+        else
             g_hash_table_insert(dma_tracker, key, GUINT_TO_POINTER(counter));
 
-    } else {
+    }
+    else
+    {
         counter++;
 
         if ( counter == 1 )
@@ -205,7 +209,7 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
             gchar *maccessf = g_strdup_printf("memaccess-0x%lx", key);
             gchar *stackf = g_strdup_printf("stacktrace-0x%lx", key);
             gchar *tar = g_strdup_printf("tar --remove-files -czf snapshot-0x%lx.tar.gz regs-0x%lx.csv memmap-0x%lx vmcore-0x%lx memaccess-0x%lx stacktrace-0x%lx",
-                                         key, key, key, key, key, key);
+                    key, key, key, key, key, key);
 
             // don't save the kfx log breakpoint in the snapshot
             vmi_write_8_va(vmi, kfx_dma_log_cc, 0, &nop);
@@ -255,9 +259,9 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
 static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     printf("DMA access! RIP: 0x%lx Mem: 0x%lx %c%c\n",
-           event->x86_regs->rip, event->mem_event.gla,
-           (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-           (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
+        event->x86_regs->rip, event->mem_event.gla,
+        (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+        (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
 
     if ( (event->mem_event.out_access & VMI_MEMACCESS_R) && (stacktrace || memmap) )
         do_stacktrace(vmi, event, event->mem_event.gla);
@@ -312,8 +316,8 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         addr_t dev_driver, driver_name;
 
         if ( (VMI_FAILURE != vmi_read_addr_va(vmi, dev + device_driver_offset, 0, &dev_driver)) &&
-             (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
-             (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
+            (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
+            (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
             printf("Failed to read driver name\n");
 
         if ( driver_filter )
@@ -349,7 +353,7 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             unsigned int pages = size / 0x1000 + !!(size % 0x1000);
 
             for ( size_t i = 0; i < pages; i+=0x1000 )
-                 set_dma_permissions(vmi, start + i, pt, access);
+                set_dma_permissions(vmi, start + i, pt, access);
 
             event->x86_regs->rip += 1;
             return VMI_EVENT_RESPONSE_SET_REGISTERS;
@@ -386,8 +390,8 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         }
 
         if ( (VMI_FAILURE != vmi_read_addr_va(vmi, alloc_dev + device_driver_offset, 0, &dev_driver)) &&
-             (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
-             (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
+            (VMI_FAILURE != vmi_read_addr_va(vmi, dev_driver + driver_name_offset, 0, &driver_name)) &&
+            (NULL == (alloc_dev_name = vmi_read_str_va(vmi, driver_name, 0))) )
             printf("Failed to read driver name\n");
 
         if ( driver_filter )
@@ -434,7 +438,7 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
             unsigned int pages = alloc_size / 0x1000 + (alloc_size % 0x1000 ? 1 : 0);
 
             for ( size_t i = 0; i < pages; i+=0x1000 )
-                 set_dma_permissions(vmi, start + i, target_pagetable, VMI_MEMACCESS_RW);
+                set_dma_permissions(vmi, start + i, target_pagetable, VMI_MEMACCESS_RW);
         }
     }
 #endif
@@ -509,54 +513,54 @@ int main(int argc, char** argv)
     {
         switch(c)
         {
-        case 'd':
-            domain = optarg;
-            break;
-        case 'i':
-            domid = strtoul(optarg, NULL, 0);
-            break;
-        case 'j':
-            json = optarg;
-            break;
-        case 's':
-            stacktrace = true;
-            break;
-        case 'a':
-        {
-            addr_t addr = strtoull(optarg, NULL, 0);
-            dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(addr));
-            break;
-        }
-        case 'r':
-        {
-            driver_filter = optarg;
-            break;
-        }
-        case 'o':
-            alloc_only = 1;
-            break;
-        case 'w':
-            wait_for_cr3 = true;
-            break;
-        case 'm':
-            memmap = optarg;
-            break;
-        case 'k':
-            stack_save_key = strtoull(optarg, NULL, 0);
-            break;
-        case 'F':
-            stack_frames = strtoull(optarg, NULL, 0);
-            break;
-        case 'U':
-            stack_unique = optarg;
-            break;
-        case 'K':
-            kvmi = optarg;
-            break;
-        case 'h': /* fall-through */
-        default:
-            options();
-            return -1;
+            case 'd':
+                domain = optarg;
+                break;
+            case 'i':
+                domid = strtoul(optarg, NULL, 0);
+                break;
+            case 'j':
+                json = optarg;
+                break;
+            case 's':
+                stacktrace = true;
+                break;
+            case 'a':
+            {
+                addr_t addr = strtoull(optarg, NULL, 0);
+                dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(addr));
+                break;
+            }
+            case 'r':
+            {
+                driver_filter = optarg;
+                break;
+            }
+            case 'o':
+                alloc_only = 1;
+                break;
+            case 'w':
+                wait_for_cr3 = true;
+                break;
+            case 'm':
+                memmap = optarg;
+                break;
+            case 'k':
+                stack_save_key = strtoull(optarg, NULL, 0);
+                break;
+            case 'F':
+                stack_frames = strtoull(optarg, NULL, 0);
+                break;
+            case 'U':
+                stack_unique = optarg;
+                break;
+            case 'K':
+                kvmi = optarg;
+                break;
+            case 'h': /* fall-through */
+            default:
+                options();
+                return -1;
         };
     }
 
@@ -634,7 +638,8 @@ int main(int argc, char** argv)
     if ( VMI_SUCCESS == vmi_translate_ksym2v(vmi, "kfx_dma_log", &kfx_dma_log) )
         printf("kfx_dma_log @ 0x%lx\n", kfx_dma_log);
 #ifdef HAVE_XEN
-    else {
+    else
+    {
         if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "dma_alloc_attrs", &dma_alloc_attrs) )
             goto done;
         if ( VMI_FAILURE == vmi_read_va(vmi, dma_alloc_attrs, 0, 15, &emul_insn.data, NULL) )
@@ -645,14 +650,15 @@ int main(int argc, char** argv)
         printf("dma_alloc_attrs @ 0x%lx\n", dma_alloc_attrs);
     }
 #else
-    else {
+    else
+    {
         printf("On KVM the target kernel must be compiled with kfx_dma_log\n");
         goto done;
     }
 #endif
 
     if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device", "driver", &device_driver_offset)) ||
-         (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )
+        (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "device_driver", "name", &driver_name_offset)) )
     {
         fprintf(stderr, "Cannot find device driver name offsets\n");
         goto done;

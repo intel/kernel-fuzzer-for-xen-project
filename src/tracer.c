@@ -4,7 +4,8 @@
  */
 #include "private.h"
 
-static const char *traptype[] = {
+static const char *traptype[] =
+{
     [VMI_EVENT_SINGLESTEP] = "singlestep",
     [VMI_EVENT_CPUID] = "cpuid",
     [VMI_EVENT_INTERRUPT] = "int3",
@@ -36,7 +37,7 @@ static uint8_t cf_backup;
 static void breakpoint_next_cf(vmi_instance_t vmi)
 {
     if ( VMI_SUCCESS == vmi_read_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL) &&
-         VMI_SUCCESS == vmi_write_pa(vmi, next_cf_paddr, 1, &cc, NULL) )
+        VMI_SUCCESS == vmi_write_pa(vmi, next_cf_paddr, 1, &cc, NULL) )
     {
         if ( debug ) printf("[TRACER] Next CF: 0x%lx -> 0x%lx\n", next_cf_vaddr, next_cf_paddr);
     }
@@ -134,7 +135,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t cr3, addr_t start)
 
     if ( !found && debug )
         printf("Didn't find a control flow instruction starting from 0x%lx with a search limit %u! Counter: %lu\n",
-               start, TRACER_CF_SEARCH_LIMIT, tracer_counter);
+            start, TRACER_CF_SEARCH_LIMIT, tracer_counter);
 
 done:
     return found;
@@ -169,7 +170,8 @@ static bool check_if_sink(vmi_instance_t vmi, vmi_event_t *event, event_response
 
             if ( debug ) printf("\t Sink %s! Tracer counter: %lu. Action: %i.\n", s->function, tracer_counter, action);
 
-            switch (action) {
+            switch (action)
+            {
                 case REPORT_CRASH:
                     crash = 1;
                     vmi_pause_vm(vmi);
@@ -241,132 +243,134 @@ static event_response_t tracer_cb(vmi_instance_t vmi, vmi_event_t *event)
     switch ( event->type )
     {
 
-    /*
-     * Singlestep (MTF) callbacks happen after:
-     * - EPT violation used for doublefetch detection where we need to reset page permissions afterwards
-     * - Stepping over a breakpoint CF where we need to find the next CF and breakpoint it
-     *
-     * In both cases we toggle the MTF off as the response
-     */
-    case VMI_EVENT_SINGLESTEP:
-    {
-        if ( reset_mem_permission )
+        /*
+         * Singlestep (MTF) callbacks happen after:
+         * - EPT violation used for doublefetch detection where we need to reset page permissions afterwards
+         * - Stepping over a breakpoint CF where we need to find the next CF and breakpoint it
+         *
+         * In both cases we toggle the MTF off as the response
+         */
+        case VMI_EVENT_SINGLESTEP:
         {
-            vmi_set_mem_event(vmi, GPOINTER_TO_SIZE(event->data), VMI_MEMACCESS_RWX, 0);
-            reset_mem_permission = 0;
-            if ( debug ) printf("Resetting EPT permission on GFN 0x%lx\n", GPOINTER_TO_SIZE(event->data));
-        } else if ( next_cf_insn(vmi, event->x86_regs->cr3, event->x86_regs->rip) )
-            breakpoint_next_cf(vmi);
-
-        return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
-    }
-
-    /*
-     * Interrupt (int3) callbacks can happen when:
-     * - 1) Tracing the control flow
-     * - 2) End-harness with non-cpuid harnessing
-     * - 3) The code we are fuzzing itself may have an int3
-     */
-    case VMI_EVENT_INTERRUPT:
-    {
-        /* Reinject needs to be set in all cases */
-        event->interrupt_event.reinject = 0;
-
-        if ( event->x86_regs->rip != next_cf_vaddr )
-        {
-            /* This is not the next CF address */
-
-            /*
-             * Can be a compiled in sink point with a magic mark.
-             * Use RCX to distinguish between various sink points.
-             * This can be useful if finding the sink locations is otherwise hard due
-             * to relocation / randomization or just to simplify things.
-             */
-            if ( event->x86_regs->rax == 0x13371337 )
+            if ( reset_mem_permission )
             {
-                crash = 1;
-                if ( debug ) printf("\t Compiled-in sink (rcx: 0x%lx)\n", event->x86_regs->rcx);
+                vmi_set_mem_event(vmi, GPOINTER_TO_SIZE(event->data), VMI_MEMACCESS_RWX, 0);
+                reset_mem_permission = 0;
+                if ( debug ) printf("Resetting EPT permission on GFN 0x%lx\n", GPOINTER_TO_SIZE(event->data));
             }
-            else if ( harness_cpuid )
-            {
-                /* This is case 3) expecting breakpoints only at the sinks so reinject this to the VM */
-                if ( debug ) printf("\t Reinjecting unexpected breakpoint at 0x%lx\n", event->x86_regs->rip);
-                event->interrupt_event.reinject = 1;
-                return 0;
-            } else if ( debug )
-                printf("\t Harness signal on finish\n");
+            else if ( next_cf_insn(vmi, event->x86_regs->cr3, event->x86_regs->rip) )
+                breakpoint_next_cf(vmi);
 
-            /*
-             * This is case 2)
-             * We are using breakpoints as a harness. We can't tell the difference if this is the end harness
-             * or just a spurious int3 in the code being fuzzed so we treat it as the end harness. Should be
-             * very rare.
-             */
-            vmi_pause_vm(vmi);
-            interrupted = 1;
-
-            if ( doublefetch_trip )
-                crash = 1;
-
-            return 0;
+            return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
         }
 
-        /* This is case 1), we are at the expected breakpointed CF instruction */
-        vmi_write_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL);
-
-        tracer_counter++;
-
-        /* Turn on MTF if we are under the limit and continue */
-        if ( limit == ~0ul || tracer_counter < limit )
-            return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
-
-        if ( debug ) printf("Hit the tracer limit: %lu\n", tracer_counter);
-        vmi_pause_vm(vmi);
-        interrupted = 1;
-        break;
-    }
-
-    /* Used only when checking for doublefetches */
-    case VMI_EVENT_MEMORY:
-    {
-        if ( debug ) printf("Mem access @ 0x%lx %c%c%c\n", event->mem_event.gla,
-                            (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-                            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
-                            (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-');
-
-        /* Only care about data-fetches */
-        if ( event->mem_event.out_access & VMI_MEMACCESS_R )
+        /*
+         * Interrupt (int3) callbacks can happen when:
+         * - 1) Tracing the control flow
+         * - 2) End-harness with non-cpuid harnessing
+         * - 3) The code we are fuzzing itself may have an int3
+         */
+        case VMI_EVENT_INTERRUPT:
         {
-            /* If fetch happened at the address we just saw last, doublefetch detected! */
-            if ( event->mem_event.gla == doublefetch_check_va )
+            /* Reinject needs to be set in all cases */
+            event->interrupt_event.reinject = 0;
+
+            if ( event->x86_regs->rip != next_cf_vaddr )
             {
-                if ( debug ) printf("Doublefetch detected at 0x%lx\n", event->mem_event.gla);
+                /* This is not the next CF address */
 
                 /*
-                 * Check if this doublefetch is triggered by a RIP-pair we haven't seen before.
-                 * We want to only report a crash back to AFL for new pairs and let the code
-                 * continue running.
+                 * Can be a compiled in sink point with a magic mark.
+                 * Use RCX to distinguish between various sink points.
+                 * This can be useful if finding the sink locations is otherwise hard due
+                 * to relocation / randomization or just to simplify things.
                  */
-                addr_t key = event->x86_regs->rip ^ doublefetch_rip;
-                if ( g_hash_table_insert(doublefetch_lookup, GSIZE_TO_POINTER(key), NULL) )
-                    doublefetch_trip = 1;
+                if ( event->x86_regs->rax == 0x13371337 )
+                {
+                    crash = 1;
+                    if ( debug ) printf("\t Compiled-in sink (rcx: 0x%lx)\n", event->x86_regs->rcx);
+                }
+                else if ( harness_cpuid )
+                {
+                    /* This is case 3) expecting breakpoints only at the sinks so reinject this to the VM */
+                    if ( debug ) printf("\t Reinjecting unexpected breakpoint at 0x%lx\n", event->x86_regs->rip);
+                    event->interrupt_event.reinject = 1;
+                    return 0;
+                }
+                else if ( debug )
+                    printf("\t Harness signal on finish\n");
+
+                /*
+                 * This is case 2)
+                 * We are using breakpoints as a harness. We can't tell the difference if this is the end harness
+                 * or just a spurious int3 in the code being fuzzed so we treat it as the end harness. Should be
+                 * very rare.
+                 */
+                vmi_pause_vm(vmi);
+                interrupted = 1;
+
+                if ( doublefetch_trip )
+                    crash = 1;
+
+                return 0;
             }
 
-            /* Store address currently fetched for future reference */
-            doublefetch_check_va = event->mem_event.gla;
-            doublefetch_rip = event->x86_regs->rip;
+            /* This is case 1), we are at the expected breakpointed CF instruction */
+            vmi_write_pa(vmi, next_cf_paddr, 1, &cf_backup, NULL);
 
-            if ( record_memaccess )
-                g_hash_table_insert(memaccess, GSIZE_TO_POINTER(event->mem_event.gla), GSIZE_TO_POINTER(event->x86_regs->rip));
+            tracer_counter++;
+
+            /* Turn on MTF if we are under the limit and continue */
+            if ( limit == ~0ul || tracer_counter < limit )
+                return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+
+            if ( debug ) printf("Hit the tracer limit: %lu\n", tracer_counter);
+            vmi_pause_vm(vmi);
+            interrupted = 1;
+            break;
         }
 
-        /* Allow access through but mark that permissions need to be reset after singlestep */
-        vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
-        reset_mem_permission = 1;
-        singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);
+        /* Used only when checking for doublefetches */
+        case VMI_EVENT_MEMORY:
+        {
+            if ( debug ) printf("Mem access @ 0x%lx %c%c%c\n", event->mem_event.gla,
+                    (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+                    (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+                    (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-');
 
-        return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
-    }
+            /* Only care about data-fetches */
+            if ( event->mem_event.out_access & VMI_MEMACCESS_R )
+            {
+                /* If fetch happened at the address we just saw last, doublefetch detected! */
+                if ( event->mem_event.gla == doublefetch_check_va )
+                {
+                    if ( debug ) printf("Doublefetch detected at 0x%lx\n", event->mem_event.gla);
+
+                    /*
+                     * Check if this doublefetch is triggered by a RIP-pair we haven't seen before.
+                     * We want to only report a crash back to AFL for new pairs and let the code
+                     * continue running.
+                     */
+                    addr_t key = event->x86_regs->rip ^ doublefetch_rip;
+                    if ( g_hash_table_insert(doublefetch_lookup, GSIZE_TO_POINTER(key), NULL) )
+                        doublefetch_trip = 1;
+                }
+
+                /* Store address currently fetched for future reference */
+                doublefetch_check_va = event->mem_event.gla;
+                doublefetch_rip = event->x86_regs->rip;
+
+                if ( record_memaccess )
+                    g_hash_table_insert(memaccess, GSIZE_TO_POINTER(event->mem_event.gla), GSIZE_TO_POINTER(event->x86_regs->rip));
+            }
+
+            /* Allow access through but mark that permissions need to be reset after singlestep */
+            vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0);
+            reset_mem_permission = 1;
+            singlestep_event.data = GSIZE_TO_POINTER(event->mem_event.gfn);
+
+            return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+        }
     };
 
     return 0;
@@ -440,7 +444,8 @@ bool setup_trace(vmi_instance_t vmi)
     return true;
 }
 
-bool start_trace(vmi_instance_t vmi, addr_t address) {
+bool start_trace(vmi_instance_t vmi, addr_t address)
+{
     if ( debug ) printf("Starting trace from 0x%lx.\n", address);
 
     /* Permission needs to be removed for each iteration */
@@ -506,7 +511,8 @@ void do_record_codecov(void)
     fclose(f);
 }
 
-void close_trace(vmi_instance_t vmi) {
+void close_trace(vmi_instance_t vmi)
+{
     vmi_clear_event(vmi, &singlestep_event, NULL);
     vmi_clear_event(vmi, &int3_event, NULL);
 
@@ -555,7 +561,8 @@ void close_trace(vmi_instance_t vmi) {
  */
 static void unset_hvm_params(void)
 {
-    static const unsigned int unset_params[] = {
+    static const unsigned int unset_params[] =
+    {
         HVM_PARAM_STORE_PFN,
         HVM_PARAM_STORE_EVTCHN,
         HVM_PARAM_CONSOLE_PFN,
@@ -643,7 +650,7 @@ bool make_sink_ready(void)
 
         if ( debug )
             printf("Setting breakpoint on sink %s 0x%lx -> 0x%lx\n",
-                   s->function, s->vaddr, s->paddr);
+                s->function, s->vaddr, s->paddr);
     }
 
     unset_hvm_params();

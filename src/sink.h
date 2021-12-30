@@ -7,7 +7,8 @@
 
 #include "sink_handler.h"
 
-struct sink {
+struct sink
+{
     const char *function;
     addr_t vaddr;
     addr_t paddr;
@@ -29,7 +30,8 @@ struct sink {
  *
  * Sink functions listed here that are not found in the JSON will be skipped.
  */
-static struct sink sinks[] = {
+static struct sink sinks[] =
+{
     { .function = "panic" },
     { .function = "oops_begin" },
 

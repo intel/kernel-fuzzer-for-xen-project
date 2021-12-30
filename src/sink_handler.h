@@ -13,13 +13,15 @@ struct sink;
  *   REPORT_CRASH: stop execution and report crash
  *   CONTINUE: don't stop execution, don't report a crash
  */
-typedef enum sink_callback_response {
-     REPORT_CRASH,
-     IGNORE,
-     CONTINUE,
+typedef enum sink_callback_response
+{
+    REPORT_CRASH,
+    IGNORE,
+    CONTINUE,
 } sink_cb_response_t;
 
-struct sink_handler {
+struct sink_handler
+{
     bool (*init)(vmi_instance_t vmi, struct sink *s);
     sink_cb_response_t (*cb)(vmi_instance_t vmi, vmi_event_t *event, event_response_t *rsp, struct sink *s);
     void *data;

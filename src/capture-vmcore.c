@@ -53,8 +53,8 @@ static bool resume_and_break_at_kexec(vmi_instance_t vmi)
     uint8_t cc = 0xcc;
     SETUP_INTERRUPT_EVENT(&interrupt_event, int3_cb);
     if ( (VMI_FAILURE == vmi_read_8_va(vmi, machine_kexec, 0, &old_machine_kexec_insn)) ||
-         (VMI_FAILURE == vmi_write_8_va(vmi, machine_kexec, 0, &cc)) ||
-         (VMI_FAILURE == vmi_register_event(vmi, &interrupt_event)) )
+        (VMI_FAILURE == vmi_write_8_va(vmi, machine_kexec, 0, &cc)) ||
+        (VMI_FAILURE == vmi_register_event(vmi, &interrupt_event)) )
     {
         fprintf(stderr, "Failed to set a breakpoint at kexec\n");
         return false;
@@ -92,7 +92,7 @@ static bool dump_vmcore(vmi_instance_t vmi, addr_t elf_load_addr, addr_t elf_hea
     size_t read = 0, total_notes_memsz = 0;
 
     if ( (VMI_FAILURE == vmi_read_pa(vmi, elf_load_addr, elf_headers_sz, elfcorehdr, &read)) ||
-         (elf_headers_sz != read) )
+        (elf_headers_sz != read) )
     {
         fprintf(stderr, "Failed to read ELF header at 0x%lx\n", elf_load_addr);
         return false;
@@ -192,22 +192,22 @@ int main(int argc, char** argv)
     {
         switch(c)
         {
-        case 'd':
-            domain = optarg;
-            break;
-        case 'i':
-            domid = strtoul(optarg, NULL, 0);
-            break;
-        case 'j':
-            json = optarg;
-            break;
-        case 'o':
-            outfile = optarg;
-            break;
-        case 'h': /* fall-through */
-        default:
-            options();
-            return -1;
+            case 'd':
+                domain = optarg;
+                break;
+            case 'i':
+                domid = strtoul(optarg, NULL, 0);
+                break;
+            case 'j':
+                json = optarg;
+                break;
+            case 'o':
+                outfile = optarg;
+                break;
+            case 'h': /* fall-through */
+            default:
+                options();
+                return -1;
         };
     }
 
@@ -244,18 +244,18 @@ int main(int argc, char** argv)
     }
 
     if ( (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "kimage", "arch", &kimage_arch_offset)) ||
-         (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "kimage_arch", "elf_load_addr", &elf_load_addr_offset)) ||
-         (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "kimage_arch", "elf_headers_sz", &elf_headers_sz_offset)) )
+        (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "kimage_arch", "elf_load_addr", &elf_load_addr_offset)) ||
+        (VMI_FAILURE == vmi_get_kernel_struct_offset(vmi, "kimage_arch", "elf_headers_sz", &elf_headers_sz_offset)) )
     {
         fprintf(stderr, "Cannot find device kimage and/or elf_headers offsets\n");
         goto done;
     }
     if ( (VMI_FAILURE == vmi_read_addr_ksym(vmi, "kexec_crash_image", &kexec_crash_image)) ||
-         (0 == kexec_crash_image) ||
-         VMI_FAILURE == vmi_read_addr_va(vmi, kexec_crash_image + kimage_arch_offset + elf_load_addr_offset, 0, &elf_load_addr) ||
-         (0 == elf_load_addr) ||
-         VMI_FAILURE == vmi_read_addr_va(vmi, kexec_crash_image + kimage_arch_offset + elf_headers_sz_offset, 0, &elf_headers_sz) ||
-         (0 == elf_headers_sz) )
+        (0 == kexec_crash_image) ||
+        VMI_FAILURE == vmi_read_addr_va(vmi, kexec_crash_image + kimage_arch_offset + elf_load_addr_offset, 0, &elf_load_addr) ||
+        (0 == elf_load_addr) ||
+        VMI_FAILURE == vmi_read_addr_va(vmi, kexec_crash_image + kimage_arch_offset + elf_headers_sz_offset, 0, &elf_headers_sz) ||
+        (0 == elf_headers_sz) )
     {
         fprintf(stderr, "Either kexec_crash_image or elf_load_addr was not found, or was found to be NULL\n");
         fprintf(stderr, "Hint: Arm a kdump kernel with 'kexec -p' before running kfx --setup\n");

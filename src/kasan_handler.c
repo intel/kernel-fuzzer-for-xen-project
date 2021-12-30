@@ -5,7 +5,8 @@
 #include "private.h"
 #include "sink.h"
 
-struct kasan_report_handler_data {
+struct kasan_report_handler_data
+{
     emul_insn_t emul_insn;
     addr_t internal_addr;
     addr_t internal_offset;
@@ -64,7 +65,8 @@ sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event
     unsigned int kasan_depth;
     reg_t base;
 
-    if ( !data ) {
+    if ( !data )
+    {
         printf("kasan_report isn't initialized\n");
         return REPORT_CRASH;
     }
@@ -98,7 +100,8 @@ sink_cb_response_t kasan_report_cb(vmi_instance_t vmi, vmi_event_t *event, event
     return REPORT_CRASH;
 }
 
-struct sink_handler kasan_report_handler = {
+struct sink_handler kasan_report_handler =
+{
     .init = kasan_report_init,
     .cb = kasan_report_cb,
 };

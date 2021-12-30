@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake clang ca-certificates libunwind-dev
+          sudo apt-get install -y build-essential autoconf automake autoconf-archive libjson-c-dev libglib2.0-dev flex bison libtool cmake clang ca-certificates libunwind-dev clang-tools
           sudo update-ca-certificates
 
       - name: Setup ld
@@ -32,9 +32,16 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=$INSTALLDIR ..
           make -j2
           make install
+          cd ..
           rm -rf build
+          mkdir build
+          cd build
+          cmake ..
+          make -j2
+          sudo make install
           sudo ldconfig
-          cd ../..
+          cd ..
+          rm -rf build
 
       - name: Get Xen hash
         id: xen-hash
@@ -107,6 +114,22 @@ jobs:
           ./configure --prefix=$INSTALLDIR
           make -j2
           make install
+
+      - name: Scan build
+        run: |
+          export INSTALLDIR="$PWD/install"
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALLDIR/lib/
+          export PKG_CONFIG_PATH="$INSTALLDIR/lib/pkgconfig/"
+          export LDFLAGS="-L$INSTALLDIR/lib"
+          export CFLAGS="-I$INSTALLDIR/include"
+          make clean
+          cd libxdc
+          make
+          sudo make install
+          cd ..
+          git submodule deinit -f libxdc
+          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers ./configure
+          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers make
 
       - name: Install dwarf2json
         if: github.ref == 'refs/heads/master'

@@ -78,7 +78,8 @@ static GHashTable* read_memmap(const char *memmap)
     size_t len = 0;
     char *mapline = NULL;
 
-    while (getline(&mapline, &len, fp) != -1) {
+    while (getline(&mapline, &len, fp) != -1)
+    {
         gchar **split = g_strsplit(mapline, " ", 3);
         size_t moffset = strtoull(split[1], NULL, 16);
         size_t size = strtoull(split[2], NULL, 16);

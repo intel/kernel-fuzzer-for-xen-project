@@ -31,7 +31,8 @@ void afl_instrument_location(unsigned long cur_loc)
     prev_loc = cur_loc >> 1;
 }
 
-void afl_setup(void) {
+void afl_setup(void)
+{
 
     int shm_id;
 
@@ -41,7 +42,8 @@ void afl_setup(void) {
     if ( !id_str )
         return;
 
-    if (inst_r) {
+    if (inst_r)
+    {
         unsigned int r = atoi(inst_r);
 
         if (r > 100) r = 100;
@@ -50,7 +52,8 @@ void afl_setup(void) {
         afl_inst_rms = MAP_SIZE * r / 100;
     }
 
-    if (id_str) {
+    if (id_str)
+    {
         shm_id = atoi(id_str);
         afl_area_ptr = shmat(shm_id, NULL, 0);
 

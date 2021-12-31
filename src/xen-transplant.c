@@ -17,7 +17,8 @@ uint32_t domainid;
 typedef struct CPUSegment CPUSegment;
 typedef struct CPUState CPUState;
 
-struct CPUSegment {
+struct CPUSegment
+{
     uint32_t selector;
     uint32_t limit;
     uint32_t flags;
@@ -25,7 +26,8 @@ struct CPUSegment {
     uint64_t base;
 };
 
-struct CPUState {
+struct CPUState
+{
     uint32_t version;
     uint32_t size;
     uint64_t rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp;
@@ -41,7 +43,8 @@ struct CPUState {
     uint64_t dr6, dr7;
 };
 
-enum regs {
+enum regs
+{
     RAX, RBX, RCX, RDX, RSI, RDI, RSP, RBP,
     R8, R9, R10, R11, R12, R13, R14, R15,
     RIP, EFLAGS,
@@ -56,7 +59,8 @@ enum regs {
     __MAX_REG
 };
 
-static const char* reg_names[] = {
+static const char* reg_names[] =
+{
     [RAX] = "rax", [RBX] = "rbx", [RCX] = "rcx", [RDX] = "rdx", [RSI] = "rsi", [RDI] = "rdi", [RSP] = "rsp", [RBP] = "rbp",
     [R8] = "r8", [R9] = "r9", [R10] = "r10", [R11] = "r11", [R12] = "r12", [R13] = "r13", [R14] = "r14", [R15] = "r15",
     [RIP] = "rip", [EFLAGS] = "eflags",
@@ -73,19 +77,21 @@ static const char* reg_names[] = {
 /*
  * Xen expects segment attribute bits in the following format
  */
-union arb {
-        struct {
-            uint16_t type:4; // 0-3
-            uint16_t s:   1; // 4
-            uint16_t dpl: 2; // 5-6
-            uint16_t p:   1; // 7
-            uint16_t avl: 1; // 8
-            uint16_t l:   1; // 9
-            uint16_t db:  1; // 10
-            uint16_t g:   1; // 11
-            uint16_t pad: 4; // 12-15
-        };
-        uint16_t _u;
+union arb
+{
+    struct
+    {
+        uint16_t type:4; // 0-3
+        uint16_t s:   1; // 4
+        uint16_t dpl: 2; // 5-6
+        uint16_t p:   1; // 7
+        uint16_t avl: 1; // 8
+        uint16_t l:   1; // 9
+        uint16_t db:  1; // 10
+        uint16_t g:   1; // 11
+        uint16_t pad: 4; // 12-15
+    };
+    uint16_t _u;
 } arb;
 
 /*
@@ -212,166 +218,167 @@ CPUState *get_regs_csv(char *reg)
         {
             if ( !(keep_looking = strcmp(line[0], reg_names[i])) )
             {
-                switch(i) {
-                case RAX:
-                    cpu->rax = strtoull(line[1], NULL, 0);
-                    break;
-                case RBX:
-                    cpu->rbx = strtoull(line[1], NULL, 0);
-                    break;
-                case RCX:
-                    cpu->rcx = strtoull(line[1], NULL, 0);
-                    break;
-                case RDX:
-                    cpu->rdx = strtoull(line[1], NULL, 0);
-                    break;
-                case RSI:
-                    cpu->rsi = strtoull(line[1], NULL, 0);
-                    break;
-                case RDI:
-                    cpu->rdi = strtoull(line[1], NULL, 0);
-                    break;
-                case RSP:
-                    cpu->rsp = strtoull(line[1], NULL, 0);
-                    break;
-                case RBP:
-                    cpu->rbp = strtoull(line[1], NULL, 0);
-                    break;
-                case RIP:
-                    cpu->rip = strtoull(line[1], NULL, 0);
-                    break;
-                case R8:
-                    cpu->r8 = strtoull(line[1], NULL, 0);
-                    break;
-                case R9:
-                    cpu->r9 = strtoull(line[1], NULL, 0);
-                    break;
-                case R10:
-                    cpu->r10 = strtoull(line[1], NULL, 0);
-                    break;
-                case R11:
-                    cpu->r11 = strtoull(line[1], NULL, 0);
-                    break;
-                case R12:
-                    cpu->r12 = strtoull(line[1], NULL, 0);
-                    break;
-                case R13:
-                    cpu->r13 = strtoull(line[1], NULL, 0);
-                    break;
-                case R14:
-                    cpu->r14 = strtoull(line[1], NULL, 0);
-                    break;
-                case R15:
-                    cpu->r15 = strtoull(line[1], NULL, 0);
-                    break;
-                case EFLAGS:
-                    cpu->rflags = strtoull(line[1], NULL, 0);
-                    break;
-                case CS:
-                    cpu->cs.selector = strtoull(line[1], NULL, 0);
-                    cpu->cs.base = strtoull(line[2], NULL, 0);
-                    cpu->cs.limit = strtoull(line[3], NULL, 0);
-                    cpu->cs.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case DS:
-                    cpu->ds.selector = strtoull(line[1], NULL, 0);
-                    cpu->ds.base = strtoull(line[2], NULL, 0);
-                    cpu->ds.limit = strtoull(line[3], NULL, 0);
-                    cpu->ds.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case ES:
-                    cpu->es.selector = strtoull(line[1], NULL, 0);
-                    cpu->es.base = strtoull(line[2], NULL, 0);
-                    cpu->es.limit = strtoull(line[3], NULL, 0);
-                    cpu->es.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case FS:
-                    cpu->fs.selector = strtoull(line[1], NULL, 0);
-                    cpu->fs.base = strtoull(line[2], NULL, 0);
-                    cpu->fs.limit = strtoull(line[3], NULL, 0);
-                    cpu->fs.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case GS:
-                    cpu->gs.selector = strtoull(line[1], NULL, 0);
-                    cpu->gs.base = strtoull(line[2], NULL, 0);
-                    cpu->gs.limit = strtoull(line[3], NULL, 0);
-                    cpu->gs.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case SS:
-                    cpu->ss.selector = strtoull(line[1], NULL, 0);
-                    cpu->ss.base = strtoull(line[2], NULL, 0);
-                    cpu->ss.limit = strtoull(line[3], NULL, 0);
-                    cpu->ss.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case LDTR:
-                    cpu->ldt.selector = strtoull(line[1], NULL, 0);
-                    cpu->ldt.base = strtoull(line[2], NULL, 0);
-                    cpu->ldt.limit = strtoull(line[3], NULL, 0);
-                    cpu->ldt.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case TR:
-                    cpu->tr.selector = strtoull(line[1], NULL, 0);
-                    cpu->tr.base = strtoull(line[2], NULL, 0);
-                    cpu->tr.limit = strtoull(line[3], NULL, 0);
-                    cpu->tr.flags = strtoull(line[4], NULL, 0);
-                    break;
-                case GDTR_BASE:
-                    cpu->gdt.base = strtoull(line[1], NULL, 0);
-                    break;
-                case GDTR_LIMIT:
-                    cpu->gdt.limit = strtoull(line[1], NULL, 0);
-                    break;
-                case IDTR_BASE:
-                    cpu->idt.base = strtoull(line[1], NULL, 0);
-                    break;
-                case IDTR_LIMIT:
-                    cpu->idt.limit = strtoull(line[1], NULL, 0);
-                    break;
-                case CR0:
-                    cpu->cr[0] = strtoull(line[1], NULL, 0);
-                    break;
-                case CR2:
-                    cpu->cr[2] = strtoull(line[1], NULL, 0);
-                    break;
-                case CR3:
-                    cpu->cr[3] = strtoull(line[1], NULL, 0);
-                    break;
-                case CR4:
-                    cpu->cr[4] = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_KERNEL_GS_BASE:
-                    cpu->kernel_gs_base = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_EFER:
-                    cpu->efer = strtoull(line[1], NULL, 0);
-                    break;
-                case XCR0:
-                    cpu->xcr0 = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_STAR:
-                    cpu->star = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_CSTAR:
-                    cpu->star = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_LSTAR:
-                    cpu->star = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_SYSENTER_EIP:
-                    cpu->sysenter_eip = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_SYSENTER_CS:
-                    cpu->sysenter_cs = strtoull(line[1], NULL, 0);
-                    break;
-                case IA32_SYSENTER_ESP:
-                    cpu->sysenter_esp = strtoull(line[1], NULL, 0);
-                    break;
-                case DR6:
-                    cpu->dr6 = strtoull(line[1], NULL, 0);
-                    break;
-                case DR7:
-                    cpu->dr7 = strtoull(line[1], NULL, 0);
-                    break;
+                switch(i)
+                {
+                    case RAX:
+                        cpu->rax = strtoull(line[1], NULL, 0);
+                        break;
+                    case RBX:
+                        cpu->rbx = strtoull(line[1], NULL, 0);
+                        break;
+                    case RCX:
+                        cpu->rcx = strtoull(line[1], NULL, 0);
+                        break;
+                    case RDX:
+                        cpu->rdx = strtoull(line[1], NULL, 0);
+                        break;
+                    case RSI:
+                        cpu->rsi = strtoull(line[1], NULL, 0);
+                        break;
+                    case RDI:
+                        cpu->rdi = strtoull(line[1], NULL, 0);
+                        break;
+                    case RSP:
+                        cpu->rsp = strtoull(line[1], NULL, 0);
+                        break;
+                    case RBP:
+                        cpu->rbp = strtoull(line[1], NULL, 0);
+                        break;
+                    case RIP:
+                        cpu->rip = strtoull(line[1], NULL, 0);
+                        break;
+                    case R8:
+                        cpu->r8 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R9:
+                        cpu->r9 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R10:
+                        cpu->r10 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R11:
+                        cpu->r11 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R12:
+                        cpu->r12 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R13:
+                        cpu->r13 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R14:
+                        cpu->r14 = strtoull(line[1], NULL, 0);
+                        break;
+                    case R15:
+                        cpu->r15 = strtoull(line[1], NULL, 0);
+                        break;
+                    case EFLAGS:
+                        cpu->rflags = strtoull(line[1], NULL, 0);
+                        break;
+                    case CS:
+                        cpu->cs.selector = strtoull(line[1], NULL, 0);
+                        cpu->cs.base = strtoull(line[2], NULL, 0);
+                        cpu->cs.limit = strtoull(line[3], NULL, 0);
+                        cpu->cs.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case DS:
+                        cpu->ds.selector = strtoull(line[1], NULL, 0);
+                        cpu->ds.base = strtoull(line[2], NULL, 0);
+                        cpu->ds.limit = strtoull(line[3], NULL, 0);
+                        cpu->ds.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case ES:
+                        cpu->es.selector = strtoull(line[1], NULL, 0);
+                        cpu->es.base = strtoull(line[2], NULL, 0);
+                        cpu->es.limit = strtoull(line[3], NULL, 0);
+                        cpu->es.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case FS:
+                        cpu->fs.selector = strtoull(line[1], NULL, 0);
+                        cpu->fs.base = strtoull(line[2], NULL, 0);
+                        cpu->fs.limit = strtoull(line[3], NULL, 0);
+                        cpu->fs.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case GS:
+                        cpu->gs.selector = strtoull(line[1], NULL, 0);
+                        cpu->gs.base = strtoull(line[2], NULL, 0);
+                        cpu->gs.limit = strtoull(line[3], NULL, 0);
+                        cpu->gs.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case SS:
+                        cpu->ss.selector = strtoull(line[1], NULL, 0);
+                        cpu->ss.base = strtoull(line[2], NULL, 0);
+                        cpu->ss.limit = strtoull(line[3], NULL, 0);
+                        cpu->ss.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case LDTR:
+                        cpu->ldt.selector = strtoull(line[1], NULL, 0);
+                        cpu->ldt.base = strtoull(line[2], NULL, 0);
+                        cpu->ldt.limit = strtoull(line[3], NULL, 0);
+                        cpu->ldt.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case TR:
+                        cpu->tr.selector = strtoull(line[1], NULL, 0);
+                        cpu->tr.base = strtoull(line[2], NULL, 0);
+                        cpu->tr.limit = strtoull(line[3], NULL, 0);
+                        cpu->tr.flags = strtoull(line[4], NULL, 0);
+                        break;
+                    case GDTR_BASE:
+                        cpu->gdt.base = strtoull(line[1], NULL, 0);
+                        break;
+                    case GDTR_LIMIT:
+                        cpu->gdt.limit = strtoull(line[1], NULL, 0);
+                        break;
+                    case IDTR_BASE:
+                        cpu->idt.base = strtoull(line[1], NULL, 0);
+                        break;
+                    case IDTR_LIMIT:
+                        cpu->idt.limit = strtoull(line[1], NULL, 0);
+                        break;
+                    case CR0:
+                        cpu->cr[0] = strtoull(line[1], NULL, 0);
+                        break;
+                    case CR2:
+                        cpu->cr[2] = strtoull(line[1], NULL, 0);
+                        break;
+                    case CR3:
+                        cpu->cr[3] = strtoull(line[1], NULL, 0);
+                        break;
+                    case CR4:
+                        cpu->cr[4] = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_KERNEL_GS_BASE:
+                        cpu->kernel_gs_base = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_EFER:
+                        cpu->efer = strtoull(line[1], NULL, 0);
+                        break;
+                    case XCR0:
+                        cpu->xcr0 = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_STAR:
+                        cpu->star = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_CSTAR:
+                        cpu->star = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_LSTAR:
+                        cpu->star = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_SYSENTER_EIP:
+                        cpu->sysenter_eip = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_SYSENTER_CS:
+                        cpu->sysenter_cs = strtoull(line[1], NULL, 0);
+                        break;
+                    case IA32_SYSENTER_ESP:
+                        cpu->sysenter_esp = strtoull(line[1], NULL, 0);
+                        break;
+                    case DR6:
+                        cpu->dr6 = strtoull(line[1], NULL, 0);
+                        break;
+                    case DR7:
+                        cpu->dr7 = strtoull(line[1], NULL, 0);
+                        break;
                 };
             }
         }
@@ -407,13 +414,16 @@ bool load_regs(char *reg, char *vmcore)
     struct hvm_save_descriptor *desc = NULL;
     HVM_SAVE_TYPE(CPU) *regs = NULL;
 
-    while (off < ctxsize) {
+    while (off < ctxsize)
+    {
         desc = (struct hvm_save_descriptor *)(buf + off);
 
         off += sizeof (struct hvm_save_descriptor);
 
-        if (desc->typecode == HVM_SAVE_CODE(CPU) ) {
-            if ( desc->instance == 0 /* vcpu */) {
+        if (desc->typecode == HVM_SAVE_CODE(CPU) )
+        {
+            if ( desc->instance == 0 /* vcpu */)
+            {
                 regs = (HVM_SAVE_TYPE(CPU) *)(buf + off);
                 break;
             }
@@ -422,7 +432,8 @@ bool load_regs(char *reg, char *vmcore)
         off += desc->length;
     }
 
-    if (!regs) {
+    if (!regs)
+    {
         printf("No vCPU context found in target VM\n");
         goto done;
     }
@@ -537,7 +548,8 @@ bool load_mem(char *map, char *memf)
     size_t len = 0, read;
     char *mapline = NULL;
 
-    while (getline(&mapline, &len, mapfp) != -1) {
+    while (getline(&mapline, &len, mapfp) != -1)
+    {
         unsigned long s = 0, f = 0;
         gchar **split = g_strsplit(mapline, " ", 3);
         size_t foffset = strtoull(split[0], NULL, 16);

@@ -1,0 +1,6 @@
+style=allman
+indent-switches
+indent=spaces=4
+indent-after-parens
+min-conditional-indent=0
+max-continuation-indent=40

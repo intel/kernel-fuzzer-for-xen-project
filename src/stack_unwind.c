@@ -84,7 +84,8 @@ static int _unw_get_proc_name(unw_addr_space_t as, unw_word_t addr, char *b, siz
 }
 
 unw_addr_space_t unw_as;
-unw_accessors_t unw_ap = {
+unw_accessors_t unw_ap =
+{
     .resume = _unw_resume,
     .access_fpreg = _unw_access_fpreg,
     .find_proc_info = _unw_find_proc_info,
@@ -109,7 +110,8 @@ GSList *stack_unwind(vmi_instance_t vmi, x86_registers_t *regs, page_mode_t pm)
     ctx.pm = pm;
     ctx.pt = regs->cr3;
 
-    struct wrapper w = {
+    struct wrapper w =
+    {
         .vmi = vmi,
         .ctx = &ctx,
         .regs = regs
@@ -121,7 +123,8 @@ GSList *stack_unwind(vmi_instance_t vmi, x86_registers_t *regs, page_mode_t pm)
     int rc;
     uint8_t tmp;
 
-    do {
+    do
+    {
         unw_word_t pc;
         if ( !unw_get_reg(&unw_cursor, UNW_REG_IP, &pc) && pc )
         {
@@ -129,7 +132,8 @@ GSList *stack_unwind(vmi_instance_t vmi, x86_registers_t *regs, page_mode_t pm)
             if ( VMI_SUCCESS == vmi_read_8(vmi, &ctx, &tmp) )
                 stack = g_slist_prepend(stack, GSIZE_TO_POINTER(pc));
         }
-    } while( (rc = unw_step(&unw_cursor)) > 0 );
+    }
+    while( (rc = unw_step(&unw_cursor)) > 0 );
 
     if ( rc < 0 )
         printf("Stack unwind error: %i\n", rc);

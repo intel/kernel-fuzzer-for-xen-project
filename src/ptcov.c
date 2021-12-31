@@ -104,8 +104,8 @@ bool setup_pt(void)
     }
 
     if ( xc_vmtrace_set_option(
-             xc, fuzzdomid, 0, MSR_RTIT_CTL,
-             RTIT_CTL_BRANCH_EN | RTIT_CTL_USR | RTIT_CTL_OS | RTIT_CTL_DIS_RETC) )
+            xc, fuzzdomid, 0, MSR_RTIT_CTL,
+            RTIT_CTL_BRANCH_EN | RTIT_CTL_USR | RTIT_CTL_OS | RTIT_CTL_DIS_RETC) )
         return false;
 
     if ( xc_vmtrace_enable(xc, fuzzdomid, 0) )
@@ -123,10 +123,10 @@ bool setup_pt(void)
     buf[pt_buf_size] = 0x55; // libxdc magic marker
 
     fres = xenforeignmemory_map_resource(
-        fmem, fuzzdomid, XENMEM_resource_vmtrace_buf,
-        0, 0, pt_buf_size >> XC_PAGE_SHIFT,
-        (void **)&pt_buf,
-        PROT_READ, 0);
+            fmem, fuzzdomid, XENMEM_resource_vmtrace_buf,
+            0, 0, pt_buf_size >> XC_PAGE_SHIFT,
+            (void **)&pt_buf,
+            PROT_READ, 0);
 
     if ( !fres )
         return false;

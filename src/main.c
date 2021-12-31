@@ -12,12 +12,14 @@ static void get_input(void)
     if ( debug ) printf("Get %lu bytes of input from %s\n", input_limit, input_path);
 
     input_file = fopen(input_path, "r");
-    if (!input_file){
+    if (!input_file)
+    {
         return;
     }
 
     input = malloc(input_limit);
-    if ( !input ){
+    if ( !input )
+    {
         fclose(input_file);
         input_file = NULL;
         return;
@@ -129,9 +131,11 @@ static bool fuzz(void)
             fwrite(input, input_size, 1, f);
             fclose(f);
             ret = false;
-        } else
+        }
+        else
             ret = true;
-    } else
+    }
+    else
         printf("Result: %s\n", crash ? "crash" : "no crash");
 
     free(input);
@@ -258,103 +262,103 @@ int main(int argc, char** argv)
     {
         switch(c)
         {
-        case 'd':
-            domain = optarg;
-            break;
-        case 'i':
-            domid = strtoul(optarg, NULL, 0);
-            break;
-        case 'j':
-            json = optarg;
-            break;
-        case 'f':
-            input_path = optarg;
-            break;
-        case 'a':
-            address = strtoull(optarg, NULL, 0);
-            break;
-        case 'l':
-            limit = strtoull(optarg, NULL, 0);
-            break;
-        case 'L':
-            input_limit = strtoull(optarg, NULL, 0);
-            break;
-        case 's':
-            setup = true;
-            break;
-        case 'v':
-            debug = true;
-            break;
-        case 'F':
-            logfile = optarg;
-            break;
-        case 'H':
-            if ( !strcmp(optarg, "breakpoint") )
-                harness_cpuid = false;
-            break;
-        case 'S':
-            start_byte = strtoull(optarg, NULL, 0);
-            break;
-        case 'r':
-            refork = strtoull(optarg, NULL, 0);
-            break;
-        case 'O':
-            loopmode = true;
-            nocov = true;
-            break;
-        case 'K':
-            keep = true;
-            break;
-        case 'N':
-            nocov = true;
-            break;
-        case 't':
-            ptcov = true;
-            break;
-        case 'D':
-            doublefetch = g_slist_prepend(doublefetch, GSIZE_TO_POINTER(strtoull(optarg, NULL, 0)));
-            break;
-        case 'm':
-            default_magic_mark = false;
-            magic_mark = strtoul(optarg, NULL, 0);
-            break;
-        case 'c':
-            extended_mark = true;
-            break;
-        case 'n':
-        {
-            struct sink *s = g_malloc0(sizeof(struct sink));
-            s->function = optarg;
-            sink_list = g_slist_prepend(sink_list, s);
-            break;
-        }
-        case 'V':
-        {
-            struct sink *s = g_malloc0(sizeof(struct sink));
-            s->vaddr = strtoull(optarg, NULL, 0);
-            sink_list = g_slist_prepend(sink_list, s);
-            break;
-        }
-        case 'P':
-        {
-            struct sink *s = g_malloc0(sizeof(struct sink));
-            s->paddr = strtoull(optarg, NULL, 0);
-            sink_list = g_slist_prepend(sink_list, s);
-            break;
-        }
-        case 'R':
-            record_codecov = optarg;
-            break;
-        case 'M':
-            record_memaccess = optarg;
-            break;
-        case 'G':
-            fork_sig = optarg;
-            break;
-        case 'h': /* fall-through */
-        default:
-            usage();
-            return -1;
+            case 'd':
+                domain = optarg;
+                break;
+            case 'i':
+                domid = strtoul(optarg, NULL, 0);
+                break;
+            case 'j':
+                json = optarg;
+                break;
+            case 'f':
+                input_path = optarg;
+                break;
+            case 'a':
+                address = strtoull(optarg, NULL, 0);
+                break;
+            case 'l':
+                limit = strtoull(optarg, NULL, 0);
+                break;
+            case 'L':
+                input_limit = strtoull(optarg, NULL, 0);
+                break;
+            case 's':
+                setup = true;
+                break;
+            case 'v':
+                debug = true;
+                break;
+            case 'F':
+                logfile = optarg;
+                break;
+            case 'H':
+                if ( !strcmp(optarg, "breakpoint") )
+                    harness_cpuid = false;
+                break;
+            case 'S':
+                start_byte = strtoull(optarg, NULL, 0);
+                break;
+            case 'r':
+                refork = strtoull(optarg, NULL, 0);
+                break;
+            case 'O':
+                loopmode = true;
+                nocov = true;
+                break;
+            case 'K':
+                keep = true;
+                break;
+            case 'N':
+                nocov = true;
+                break;
+            case 't':
+                ptcov = true;
+                break;
+            case 'D':
+                doublefetch = g_slist_prepend(doublefetch, GSIZE_TO_POINTER(strtoull(optarg, NULL, 0)));
+                break;
+            case 'm':
+                default_magic_mark = false;
+                magic_mark = strtoul(optarg, NULL, 0);
+                break;
+            case 'c':
+                extended_mark = true;
+                break;
+            case 'n':
+            {
+                struct sink *s = g_malloc0(sizeof(struct sink));
+                s->function = optarg;
+                sink_list = g_slist_prepend(sink_list, s);
+                break;
+            }
+            case 'V':
+            {
+                struct sink *s = g_malloc0(sizeof(struct sink));
+                s->vaddr = strtoull(optarg, NULL, 0);
+                sink_list = g_slist_prepend(sink_list, s);
+                break;
+            }
+            case 'P':
+            {
+                struct sink *s = g_malloc0(sizeof(struct sink));
+                s->paddr = strtoull(optarg, NULL, 0);
+                sink_list = g_slist_prepend(sink_list, s);
+                break;
+            }
+            case 'R':
+                record_codecov = optarg;
+                break;
+            case 'M':
+                record_memaccess = optarg;
+                break;
+            case 'G':
+                fork_sig = optarg;
+                break;
+            case 'h': /* fall-through */
+            default:
+                usage();
+                return -1;
         };
     }
 
@@ -374,15 +378,24 @@ int main(int argc, char** argv)
 
         if ( default_magic_mark )
             magic_mark = 0;
-    } else if ( default_magic_mark && setup )
+    }
+    else if ( default_magic_mark && setup )
         magic_mark = 0x13371337;
 
 
     if ( logfile )
     {
         out = open(logfile, O_RDWR|O_CREAT|O_APPEND, 0600);
-        if (-1 == dup2(out, fileno(stdout))) { close(out); return -1; }
-        if (-1 == dup2(out, fileno(stderr))) { close(out); return -1; }
+        if (-1 == dup2(out, fileno(stdout)))
+        {
+            close(out);
+            return -1;
+        }
+        if (-1 == dup2(out, fileno(stderr)))
+        {
+            close(out);
+            return -1;
+        }
     }
 
     if ( debug ) printf ("############ START ################\n");

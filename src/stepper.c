@@ -83,7 +83,8 @@ static bool print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr)
             stop = true;
 
         cs_free(insn, insn_count);
-    } else
+    }
+    else
         printf(format, "-");
 
     if ( print_hex )
@@ -155,40 +156,40 @@ int main(int argc, char** argv)
     {
         switch(c)
         {
-        case 'd':
-            domid = strtoul(optarg, NULL, 0);
-            break;
-        case 'L':
-            limit = strtoull(optarg, NULL, 0);
-            break;
-        case 'l':
-            loopmode = true;
-            break;
-        case 'r':
-            reset = true;
-            break;
-        case 's':
-            stop_on_cpuid = true;
-            break;
-        case 't':
-            stop_on_sysret = true;
-            break;
-        case 'b':
-            stop_on_breakpoint = true;
-            break;
-        case 'x':
-            print_hex = true;
-            break;
-        case 'R':
-            print_regs = true;
-            break;
-        case 'S':
-            stop_rip = strtoull(optarg, NULL, 0);
-            break;
-        case 'h': /* fall-through */
-        default:
-            usage();
-            return -1;
+            case 'd':
+                domid = strtoul(optarg, NULL, 0);
+                break;
+            case 'L':
+                limit = strtoull(optarg, NULL, 0);
+                break;
+            case 'l':
+                loopmode = true;
+                break;
+            case 'r':
+                reset = true;
+                break;
+            case 's':
+                stop_on_cpuid = true;
+                break;
+            case 't':
+                stop_on_sysret = true;
+                break;
+            case 'b':
+                stop_on_breakpoint = true;
+                break;
+            case 'x':
+                print_hex = true;
+                break;
+            case 'R':
+                print_regs = true;
+                break;
+            case 'S':
+                stop_rip = strtoull(optarg, NULL, 0);
+                break;
+            case 'h': /* fall-through */
+            default:
+                usage();
+                return -1;
         };
     }
 
@@ -221,7 +222,8 @@ int main(int argc, char** argv)
     vmi_event_t singlestep_event;
     SETUP_SINGLESTEP_EVENT(&singlestep_event, 1, tracer_cb, 1);
 
-    do {
+    do
+    {
         vmi_get_vcpuregs(vmi, &regs, 0);
 
         print_instruction(vmi, regs.x86.cr3, regs.x86.rip);
@@ -262,7 +264,8 @@ int main(int argc, char** argv)
          * after a reset. There shouldn't be any divergence since after a reset the fork
          * should resume from the same state as before.
          */
-    } while ( loopmode );
+    }
+    while ( loopmode );
 
 done:
 

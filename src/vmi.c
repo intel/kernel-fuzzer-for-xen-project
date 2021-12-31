@@ -17,10 +17,10 @@ extern vmi_instance_t vmi;
 bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, char *kvmi, bool init_events, bool init_paging)
 {
     printf("Init vmi, init_events: %i init_paging %i domain %s domid %lu json %s kvmi %s\n",
-           init_events, init_paging, domain, domid, json, kvmi);
+        init_events, init_paging, domain, domid, json, kvmi);
 
     uint64_t options = (init_events ? VMI_INIT_EVENTS : 0) |
-                       (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
+        (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
     vmi_mode_t mode = kvmi ? VMI_KVM : VMI_XEN;
     const void *d = domain ?: (void*)&domid;
 
@@ -51,8 +51,7 @@ bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, ch
 
         pm = vmi_get_page_mode(*vmi, 0);
     }
-    else
-    if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )
+    else if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )
     {
         fprintf(stderr, "Error in vmi_init_paging!\n");
         vmi_destroy(*vmi);

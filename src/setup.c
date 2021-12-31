@@ -53,7 +53,7 @@ static event_response_t start_cpuid_cb(vmi_instance_t vmi, vmi_event_t *event)
     if ( event->cpuid_event.leaf == magic_mark )
     {
         printf("Got start cpuid callback with leaf: 0x%x subleaf: 0x%x\n",
-               event->cpuid_event.leaf, event->cpuid_event.subleaf);
+            event->cpuid_event.leaf, event->cpuid_event.subleaf);
 
         if ( extended_mark )
         {
@@ -91,9 +91,10 @@ static event_response_t start_cc_cb(vmi_instance_t vmi, vmi_event_t *event)
 
         if ( extended_mark )
             printf("Target buffer & size: 0x%lx %lu\n",
-                   event->x86_regs->rbx, event->x86_regs->rcx);
+                event->x86_regs->rbx, event->x86_regs->rcx);
 
-    } else
+    }
+    else
         event->interrupt_event.reinject = 1;
 
     return 0;
@@ -112,7 +113,9 @@ static void waitfor_start(vmi_instance_t vmi)
 
         printf("Waiting for harness start (cpuid with leaf 0x%x)\n", magic_mark);
 
-    } else {
+    }
+    else
+    {
         SETUP_INTERRUPT_EVENT(&cc_event, start_cc_cb);
 
         if ( VMI_FAILURE == vmi_register_event(vmi, &cc_event) )
@@ -157,8 +160,9 @@ bool make_parent_ready(void)
         if ( !parent_ready )
             fprintf(stderr, "Failed to infer input address and limit. Was the VM setup with --extended-mark?\n");
         else
-          printf("Auto inferred Input address=0x%lx, input-limit=%zu\n", address, input_limit);
-    } else
+            printf("Auto inferred Input address=0x%lx, input-limit=%zu\n", address, input_limit);
+    }
+    else
         parent_ready = true;
 
     vmi_destroy(parent_vmi);

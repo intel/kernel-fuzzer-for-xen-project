@@ -140,6 +140,8 @@ bool setup_pt(void)
 
     if ( debug || record_codecov )
         libxdc_register_ip_callback(decoder, &ip_cb, NULL);
+    else
+        libxdc_register_ip_callback(decoder, NULL, NULL);
 
     return true;
 }

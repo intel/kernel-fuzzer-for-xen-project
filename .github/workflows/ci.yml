@@ -157,9 +157,9 @@ jobs:
         run: |
           export DESTDIR="$PWD/install/aflplusplus"
           export CC=clang
-          git submodule update --init AFLplusplus
-          tar czvf aflplusplus.tar.gz AFLplusplus
-          cd AFLplusplus
+          git clone https://github.com/aflplusplus/aflplusplus
+          tar czvf aflplusplus.tar.gz aflplusplus
+          cd aflplusplus
           make
           make PREFIX="" install
 

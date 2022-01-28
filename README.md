@@ -23,7 +23,7 @@ Fuzzing memory that is located on DMA pages is possible but output written to DM
 
 # Contributions
 
-PRs that are fixing bugs of any kind are welcome but this repository is intended to be only a reference you use to create your own fuzzing setups. We encourage you to fork it and tune it to suite your fuzzing needs. PRs to this repository that add extra features will not be accepted as we try to keep this code-base simple.
+PRs that are fixing bugs of any kind are welcome but this repository is intended to be only a reference you use to create your own fuzzing setups. We encourage you to fork it and tune it to suite your fuzzing needs. PRs to this repository that add extra features will be kept to a minimum as we try to keep this code-base simple.
 
 # Table of Contents
 1. [Install dependencies](#section-1)
@@ -49,7 +49,8 @@ PRs that are fixing bugs of any kind are welcome but this repository is intended
 20. [Intel Processor Trace](#section-20)
 21. [Triaging crashes](#section-21)
 22. [Advanced harnessing](#section-22)
-22. [FAQ](#section-23)
+23. [Coverage info](#section-23)
+24. [FAQ](#section-24)
 
 # Setup instruction for Ubuntu:
 
@@ -106,7 +107,7 @@ reboot
 
 Make sure to pick the Xen entry in GRUB when booting. You can verify you booted into Xen correctly by running `xen-detect`.
 
-Note that we assign 4GB RAM to dom0 above which is a safe default but feel free to increase that if your system has a lot of RAM available.
+Note that we assign 6GB RAM to dom0 above which is a safe default but feel free to increase that if your system has a lot of RAM available.
 
 ## 3.b Booting from UEFI
 
@@ -150,6 +151,10 @@ dd if=/dev/zero of=vmdisk.img bs=1G count=20
 
 # 5. Setup networking <a name="section-5"></a>
 ----------------------------------
+
+You can follow [https://computingforgeeks.com/install-and-configure-dnsmasq-on-ubuntu](this tutorial to setup dnsmasq) to provide DHCP to your VMs.
+
+Alternatively, you can configure a static networking as follows:
 
 Create a network bridge using NetPlan at /etc/netplan/02-xenbr0.yaml:
 ```
@@ -225,7 +230,7 @@ vncviewer localhost
 
 In case it's a remote system replace localhost with the IP of the system; note however that the VNC connection is not encrypted so it may be better to setup an SSH tunnel to connect through.
 
-Follow the installation instructions in the VNC session. Configure the network manually to 10.0.0.2/24 with a default route via 10.0.0.1
+Follow the installation instructions in the VNC session. If you use static networking then configure the IP manually to 10.0.0.2/24 with a default route via 10.0.0.1, and choose a DNS server of your own choosing (for example 9.9.9.9).
 
 # 7. Grab the kernel's debug symbols & headers <a name="section-7"></a>
 ----------------------------------
@@ -303,12 +308,24 @@ autoreconf -vif
 make -j4
 ```
 
-# 13. Patch AFL <a name="section-13"></a>
+# 13. Setup AFL <a name="section-13"></a>
 ---------------------------------
+
+By default you should use AFL++ from [https://github.com/AFLplusplus/AFLplusplus](https://github.com/AFLplusplus/AFLplusplus). No custom patches are necessary but you need to set an environment variable to ensure fork VMs are cleaned up when AFL++ exits:
+```
+git clone https://github.com/aflplusplus/aflplusplus
+cd aflplusplus
+make
+sudo make install
+export AFL_KILL_SIGNAL=15
+```
+
+If you decide to you plain AFL you need to patch it with the KF/x provided patch as such:
 ```
 cd AFL
 patch -p1 < ../patches/0001-AFL-Xen-mode.patch
 make
+sudo make install
 cd ..
 ```
 
@@ -333,7 +350,7 @@ You can insert the harness before and after the code segment you want to fuzz:
 
 ```
     harness();
-    x = test((int)test1[0]);
+    x = test();
     harness();
 ```
 
@@ -373,7 +390,16 @@ Everything is now ready for fuzzing to begin. The kernel fuzzer takes the input 
 mkdir input
 mkdir output
 echo -n "not_beef" > input/beef
-sudo ./AFL/afl-fuzz -i input/ -o output/ -m 500 -X -- ./kfx --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+```
+
+If you use AFL++:
+```
+sudo -E afl-fuzz -i input/ -o output/ -- ./kfx --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
+```
+
+If you use plain AFL:
+```
+sudo afl-fuzz -i input/ -o output/ -m 1500 -X -- ./kfx --domain debian --json ~/debian.json --input @@ --input-limit 8 --address 0x<KERNEL VIRTUAL ADDRESS TO WRITE INPUT TO>
 ```
 
 You can also specify the `--limit` option of how many control-flow instructions you want to encounter before timing out the fuzz iteration. This is an alternative to the AFL built-in time-out model.
@@ -392,7 +418,10 @@ sudo ./kfx --domain debian --json ~/debian.json --debug --input /path/to/input/f
 
 # 20. Intel Processor Trace <a name="section-20"></a>
 ---------------------------------
-Using Intel Processor Trace to collect the coverage trace information can significantly boost your fuzzing speed. For this mode to activate you have to add the following line to your VM's config:
+Using Intel Processor Trace to collect the coverage trace information can significantly boost your fuzzing speed. You can check whether your processor supports this feature by running `xl info` and checking whether `vmtrace` is present in the line starting with `virt_caps`. If it's missing, your processor doesn't support this mode.
+
+
+For this mode to activate you also have to add the following line to your VM's config before you start it:
 ```
 vmtrace_buf_kb=65536
 ```
@@ -478,8 +507,11 @@ Subsequently, you can avoid having to pass the input address and limit to the fu
 
 You can also use software breakpoints (0xCC) as your harness which can be placed by standard debuggers like GDB. Use `--harness-type breakpoint` for this mode, which is particularly useful when you don't have access to the target's source-code to compile it with the CPUID-based harness. You will need to determine the start byte of the harness that was overwritten by the breakpoint and specify that to kfx with `--start-byte <byte>`. 
 
+# 23. Coverage info <a name="section-23"></a>
+---------------------------------
+Often times it is necessary to understand what code the fuzzer is exercising and discovers in order to find additional sink points of interest. By specifying `--record-codecov <filename>` on the KF/x command-line it will keep track of all instruction pointers that were discovered across all fuzzing iterations. By issuing signal 10 (`kill -10 <pid>`) to the KF/x process this information will be saved into a the filename specified. The same information is also saved when the KF/x process exits.
 
-# 23. FAQ <a name="section-23"></a>
+# 24. FAQ <a name="section-24"></a>
 ---------------------------------
 
 > Can I run this on ring3 applications?
@@ -488,7 +520,7 @@ You likely get better performance if you run AFL natively on a ring3 application
 
 > Can I fuzz Windows?
 
-This tool currently only targets Linux. You can modify the harness to target Windows or any other operating system by adjusting the sink points in `src/sink.h` that are used to catch a crash condition. You could also manually define the sink points' addresses in case the operating system is not supported by LibVMI. In case you want to fuzz closed-source portions of Windows where you can't inject the `cpuid`-based harness, you can use `--harness breakpoint` to switch to using breakpoints as your harness. This allows you to mark the code-region to fuzz with a standard debugger like WinDBG.
+This tool currently only targets Linux. You can modify the harness to target Windows or any other operating system by adjusting the sink points in `src/sink.h` that are used to catch a crash condition. You could also manually define the sink points' addresses in case the operating system is not supported by LibVMI. In case you want to fuzz closed-source portions of Windows where you can't inject the `cpuid`-based harness, you can use `--harness breakpoint` to switch to using breakpoints as your harness. This allows you to mark the code-region to fuzz with a standard debugger like WinDBG. You will find [https://github.com/intel/kernel-fuzzer-for-xen-project/wiki/Fuzzing-Windows](additional information in the Wiki).
 
 > Can I just pipe /dev/random in as fuzzing input?
 

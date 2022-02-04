@@ -6,17 +6,27 @@
 
 /* Environment variable used to pass SHM ID to the called program. */
 #define SHM_ENV_VAR         "__AFL_SHM_ID"
+#define SHM_FUZZ_ENV_VAR    "__AFL_SHM_FUZZ_ID"
 #define FORKSRV_FD          198
 
+/* Reporting options */
+#define FS_OPT_ENABLED 0x80000001
+#define FS_OPT_MAPSIZE 0x40000000
+#define FS_OPT_SNAPSHOT 0x20000000
+#define FS_OPT_AUTODICT 0x10000000
+#define FS_OPT_SHDMEM_FUZZ 0x01000000
+#define FS_OPT_NEWCMPLOG 0x02000000
+
 unsigned char *afl_area_ptr;
+unsigned char *afl_input_ptr;
 static unsigned int afl_inst_rms = MAP_SIZE;
 static char *id_str;
+static char *fuzz_str;
 unsigned long prev_loc;
 
 void afl_rewind(void)
 {
     prev_loc  = 0;
-    memset(afl_area_ptr, 0, MAP_SIZE);
 }
 
 void afl_instrument_location(unsigned long cur_loc)
@@ -33,44 +43,37 @@ void afl_instrument_location(unsigned long cur_loc)
 
 void afl_setup(void)
 {
-
+    uint32_t status = FS_OPT_ENABLED;
+    unsigned char tmp[4];
     int shm_id;
 
     id_str = getenv(SHM_ENV_VAR);
-    char *inst_r = getenv("AFL_INST_RATIO");
-
     if ( !id_str )
         return;
 
-    if (inst_r)
+    shm_id = atoi(id_str);
+    afl_area_ptr = shmat(shm_id, NULL, 0);
+
+    if (afl_area_ptr == (void*)-1) exit(1);
+
+    /* Get input via shared memory instead of file i/o */
+    fuzz_str = getenv(SHM_FUZZ_ENV_VAR);
+    if ( fuzz_str )
     {
-        unsigned int r = atoi(inst_r);
+        int shm_fuzz_id = atoi(fuzz_str);
+        afl_input_ptr = shmat(shm_fuzz_id, NULL, 0);
 
-        if (r > 100) r = 100;
-        if (!r) r = 1;
+        if (afl_input_ptr == (void*)-1) exit(1);
 
-        afl_inst_rms = MAP_SIZE * r / 100;
+        status |= FS_OPT_SHDMEM_FUZZ;
     }
 
-    if (id_str)
-    {
-        shm_id = atoi(id_str);
-        afl_area_ptr = shmat(shm_id, NULL, 0);
-
-        if (afl_area_ptr == (void*)-1) exit(1);
-
-        /* With AFL_INST_RATIO set to a low value, we want to touch the bitmap
-           so that the parent doesn't give up on us. */
-
-        if (inst_r) afl_area_ptr[0] = 1;
-    }
+    memcpy(tmp, &status, 4);
 
     /* Tell AFL we are alive */
-    unsigned char tmp[4];
     if (write(FORKSRV_FD + 1, tmp, 4) == 4)
     {
         afl = true;
-        afl_instrument_location(start_rip);
     }
 }
 

@@ -11,29 +11,42 @@ static void get_input(void)
 
     if ( debug ) printf("Get %lu bytes of input from %s\n", input_limit, input_path);
 
-    input_file = fopen(input_path, "r");
-    if (!input_file)
+    if ( !afl_input_ptr )
     {
-        return;
-    }
+        input_file = fopen(input_path, "r");
+        if (!input_file)
+        {
+            return;
+        }
 
-    input = malloc(input_limit);
-    if ( !input )
-    {
+        input = malloc(input_limit);
+        if ( !input )
+        {
+            fclose(input_file);
+            input_file = NULL;
+            return;
+        }
+
+        if ( !(input_size = fread(input, 1, input_limit, input_file)) )
+        {
+            free(input);
+            input = NULL;
+        }
+
         fclose(input_file);
         input_file = NULL;
-        return;
-    }
 
-    if ( !(input_size = fread(input, 1, input_limit, input_file)) )
+        if ( debug ) printf("Got input size %lu\n", input_size);
+    }
+    else
     {
-        free(input);
-        input = NULL;
-    }
-    fclose(input_file);
-    input_file = NULL;
+        input_size = *(uint32_t*)afl_input_ptr;
+        if ( input_size > input_limit )
+            input_size = input_limit;
 
-    if ( debug ) printf("Got input size %lu\n", input_size);
+        input = afl_input_ptr + 4;
+        if ( debug ) printf("Got input size %lu from shared memory\n", input_size);
+    }
 }
 
 static bool inject_input(vmi_instance_t vmi)
@@ -89,7 +102,6 @@ static bool fuzz(void)
     if ( afl )
     {
         afl_rewind();
-        afl_instrument_location(start_rip);
         afl_wait();
     }
 
@@ -138,8 +150,11 @@ static bool fuzz(void)
     else
         printf("Result: %s\n", crash ? "crash" : "no crash");
 
-    free(input);
-    input = NULL;
+    if ( !afl_input_ptr )
+    {
+        free(input);
+        input = NULL;
+    }
 
     return ret;
 }

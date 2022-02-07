@@ -17,6 +17,10 @@
 #define FS_OPT_SHDMEM_FUZZ 0x01000000
 #define FS_OPT_NEWCMPLOG 0x02000000
 
+#define FS_OPT_MAX_MAPSIZE ((0x00fffffeU >> 1) + 1)
+#define FS_OPT_SET_MAPSIZE(x) \
+  (x <= 1 || x > FS_OPT_MAX_MAPSIZE ? 0 : ((x - 1) << 1))
+
 unsigned char *afl_area_ptr;
 unsigned char *afl_input_ptr;
 static unsigned int afl_inst_rms = MAP_SIZE;
@@ -43,7 +47,8 @@ void afl_instrument_location(unsigned long cur_loc)
 
 void afl_setup(void)
 {
-    uint32_t status = FS_OPT_ENABLED;
+    uint32_t status = FS_OPT_ENABLED | FS_OPT_MAPSIZE | FS_OPT_SET_MAPSIZE(MAP_SIZE);
+
     unsigned char tmp[4];
     int shm_id;
 

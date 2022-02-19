@@ -92,7 +92,7 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t cr3, addr_t start)
     size_t read, search = 0;
     bool found = false;
     ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
+        .translate_mechanism = pm == VMI_PM_NONE ? VMI_TM_NONE : VMI_TM_PROCESS_DTB,
         .pt = cr3,
         .addr = start
     );
@@ -119,8 +119,8 @@ static bool next_cf_insn(vmi_instance_t vmi, addr_t cr3, addr_t start)
 
         if ( is_cf(insn[0].id) )
         {
-            next_cf_vaddr = insn[0].address;
-            if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, next_cf_vaddr, &next_cf_paddr) )
+            next_cf_vaddr = next_cf_paddr = insn[0].address;
+            if ( pm != VMI_PM_NONE && VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, next_cf_vaddr, &next_cf_paddr) )
             {
                 if ( debug ) printf("Failed to lookup next instruction PA for 0x%lx with PT 0x%lx\n", next_cf_vaddr, cr3);
                 break;

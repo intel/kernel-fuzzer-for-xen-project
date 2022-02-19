@@ -37,10 +37,10 @@ static GHashTable *pages;
 static void* page_cache_fetch(void* self_ptr, uint64_t vaddr, bool* success)
 {
     (void)self_ptr;
-    uint64_t key;
     void *page;
+    uint64_t key = vaddr;
 
-    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, vaddr, &key) )
+    if ( pm != VMI_PM_NONE && VMI_FAILURE == vmi_pagetable_lookup(vmi, target_pagetable, vaddr, &key) )
     {
         *success = false;
         return NULL;

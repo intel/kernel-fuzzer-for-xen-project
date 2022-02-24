@@ -64,7 +64,8 @@ static bool apply_panic_on_warn(vmi_instance_t vmi)
     if ( VMI_FAILURE == vmi_read_64_ksym(vmi, "kasan_flags", &kasan_flags) )
     {
         fprintf(stderr, "Unable to locate kasan_flags. Assuming KASAN is disabled\n");
-    } else
+    }
+    else
     {
         kasan_flags &= ~0x3;
         if ( VMI_FAILURE == vmi_write_64_ksym(vmi, "kasan_flags", &kasan_flags) )

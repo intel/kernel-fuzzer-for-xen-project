@@ -34,6 +34,7 @@ static void options(void)
     printf("\t--domid <domain id>\n");
     printf("\t--json <path to kernel debug json>\n");
     printf("\t--out <path for output vmcore file>\n");
+    printf("\t--panic-on-warn\n");
 }
 
 static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -46,6 +47,36 @@ static event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         interrupted = 1;
     }
     return 0;
+}
+
+static bool apply_panic_on_warn(vmi_instance_t vmi)
+{
+    uint32_t pow = 1;
+    uint64_t kasan_flags = 0;
+    if ( VMI_FAILURE == vmi_write_32_ksym(vmi, "panic_on_warn", &pow) )
+    {
+        fprintf(stderr, "Failed to enable panic_on_warn\n");
+        return false;
+    }
+    printf("Force enabled panic_on_warn\n");
+
+    /* Unset KASAN_BIT_REPORTED and KASAN_BIT_MULTI_SHOT so that panic_on_warn is not ignored. */
+    if ( VMI_FAILURE == vmi_read_64_ksym(vmi, "kasan_flags", &kasan_flags) )
+    {
+        fprintf(stderr, "Unable to locate kasan_flags. Assuming KASAN is disabled\n");
+    }
+    else
+    {
+        kasan_flags &= ~0x3;
+        if ( VMI_FAILURE == vmi_write_64_ksym(vmi, "kasan_flags", &kasan_flags) )
+        {
+            fprintf(stderr, "Failed to write to kasan_flags\n");
+            return false;
+        }
+        printf("Force disabled KASAN multishot and reported bits\n");
+    }
+
+    return true;
 }
 
 static bool resume_and_break_at_kexec(vmi_instance_t vmi)
@@ -179,14 +210,16 @@ int main(int argc, char** argv)
         {"domid", required_argument, NULL, 'i'},
         {"json", required_argument, NULL, 'j'},
         {"out", required_argument, NULL, 'o'},
+        {"panic-on-warn", no_argument, NULL, 'p'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:h";
+    const char* opts = "d:i:j:ph";
     uint32_t domid = 0;
     char *domain = NULL;
     char *json = NULL;
     char *outfile = NULL;
+    bool force_pow = false;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -203,6 +236,9 @@ int main(int argc, char** argv)
                 break;
             case 'o':
                 outfile = optarg;
+                break;
+            case 'p':
+                force_pow = true;
                 break;
             case 'h': /* fall-through */
             default:
@@ -263,6 +299,10 @@ int main(int argc, char** argv)
 
     }
     printf("Found vmcore ELF header at PA 0x%lx\n", elf_load_addr);
+
+    if ( force_pow && !apply_panic_on_warn(vmi) )
+        goto done;
+
     printf("Resuming VM until kdump kexec to populate/update all segments\n");
     if ( !resume_and_break_at_kexec(vmi) )
         goto done;

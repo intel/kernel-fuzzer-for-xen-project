@@ -65,12 +65,12 @@ char *stack_unique;
 
 static void options(void)
 {
-    printf("Options:\n");
-    printf("\t--domain <domain name>\n");
-    printf("\t--domid <domain id>\n");
+    printf("Required:\n");
+    printf("\t--domain <domain name> OR --domid <domain id>\n");
     printf("\t--json <path to kernel debug json>\n");
+    printf("\nOptional:\n");
     printf("\t--driver <driver/module name>\n");
-    printf("\t--dma <dma address>\n");
+    printf("\t--dma <dma address[:end address]>\n");
     printf("\t--alloc-only\n");
     printf("\t--stacktrace\n");
     printf("\t--wait-for-cr3\n");
@@ -142,7 +142,7 @@ static void reset_dma_permissions(gpointer data)
 
 static event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    vmi_set_mem_event(vmi, GPOINTER_TO_SIZE(event->data), VMI_MEMACCESS_RW, 0);
+    vmi_set_mem_event(vmi, GPOINTER_TO_SIZE(event->data), VMI_MEMACCESS_RWX, 0);
     return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
@@ -258,10 +258,12 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
 
 static event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    printf("DMA access! RIP: 0x%lx Mem: 0x%lx %c%c\n",
+    printf("DMA access! RIP: 0x%lx Mem: 0x%lx %c%c%c\n",
         event->x86_regs->rip, event->mem_event.gla,
         (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-        (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-');
+        (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+        (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-'
+    );
 
     if ( (event->mem_event.out_access & VMI_MEMACCESS_R) && (stacktrace || memmap) )
         do_stacktrace(vmi, event, event->mem_event.gla);
@@ -527,8 +529,22 @@ int main(int argc, char** argv)
                 break;
             case 'a':
             {
-                addr_t addr = strtoull(optarg, NULL, 0);
+                gchar **arr = g_strsplit(optarg, ":", 2);
+                addr_t addr = strtoull(arr[0], NULL, 0);
                 dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(addr));
+
+                if ( arr[1] )
+                {
+                    addr_t end_addr = strtoull(arr[1], NULL, 0);
+                    while (end_addr > addr )
+                    {
+                        end_addr -= 0x1000;
+                        dma_list = g_slist_prepend(dma_list, GSIZE_TO_POINTER(end_addr));
+                    }
+                }
+
+                g_strfreev(arr);
+
                 break;
             }
             case 'r':
@@ -668,7 +684,7 @@ int main(int argc, char** argv)
     while ( tmp )
     {
         addr_t dma = GPOINTER_TO_SIZE(tmp->data);
-        set_dma_permissions(vmi, dma, target_pagetable, VMI_MEMACCESS_RW);
+        set_dma_permissions(vmi, dma, target_pagetable, VMI_MEMACCESS_RWX);
 
         tmp = tmp->next;
     }

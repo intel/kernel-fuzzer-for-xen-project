@@ -31,10 +31,12 @@ static void do_list_pages(addr_t pagetable)
 
         loop = loop->next;
 
-        printf("\t0x%lx [0x%x %s%c]\n",
+        printf("\t0x%lx [0x%x %s%c] -> 0x%lx\n",
             info->vaddr, info->size,
             READ_WRITE(entry) ? "rw" : "r-",
-            NX(entry) ? '-' : 'x');
+            NX(entry) ? '-' : 'x',
+            info->paddr
+        );
 
         free(info);
     }

@@ -1,4 +1,4 @@
-# Kernel Fuzzer for Xen Project (KF/x)*
+# KF/x - Kernel Fuzzer for Xen Project
 
 Hypervisor-based fuzzing using Xen and AFL. The tool utilizes Xen VM forks to perform the fuzzing, thus
 allowing for parallel fuzzing/multiple AFL instances to fuzz at the same time. Coverage guidance for 
@@ -320,7 +320,7 @@ sudo make install
 export AFL_KILL_SIGNAL=15
 ```
 
-If you decide to you plain AFL you need to patch it with the KF/x provided patch as such:
+If you decide to use plain AFL you need to patch it with the KF/x provided patch as such:
 ```
 cd AFL
 patch -p1 < ../patches/0001-AFL-Xen-mode.patch

@@ -121,7 +121,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( !domid || (!read && !write && !list_pages) || (read && write) || (!list_pages && (!address || !limit || !filepath)) )
+    if ( !domid || (!read && !write && !list_pages) || (read && write) || (!list_pages && (!limit || !filepath)) )
     {
         usage();
         return -1;

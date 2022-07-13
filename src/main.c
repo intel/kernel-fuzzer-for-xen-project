@@ -88,7 +88,11 @@ static bool fuzz(void)
     if ( !fuzzdomid )
         return false;
 
+#ifdef XEN_416
     if ( xc_memshr_fork_reset(xc, fuzzdomid) )
+#else
+    if ( xc_memshr_fork_reset(xc, fuzzdomid, true, true) )
+#endif
         return false;
 
     crash = 0;

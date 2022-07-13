@@ -18,7 +18,10 @@ AC_ARG_ENABLE([xen],
       [with_xen=yes])
 
 AS_IF([test x"$with_xen" = x"yes"], [
-    PKG_CHECK_MODULES([LIBXC], [xencontrol >= 4.15.0],[],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
+    PKG_CHECK_MODULES([LIBXC], [xencontrol >= 4.15.0 xencontrol < 4.17.0],[AC_DEFINE([XEN_416],[1],[Xen 4.16])],[
+        PKG_CHECK_MODULES([LIBXC], [xencontrol >= 4.17.0],[AC_DEFINE([XEN_417],[1],[Xen 4.17])],[AC_MSG_ERROR(libxc not found. Install missing package and re-run)])
+    ])
+
     PKG_CHECK_MODULES([LIBXL], [xenlight >= 4.15.0],[],[AC_MSG_ERROR(libxenlight not found. Install missing package and re-run)])
     PKG_CHECK_MODULES([XENFMEM], [xenforeignmemory >= 1.3],[],[AC_MSG_ERROR(libxenforeignmemory not found. Install missing package and re-run)])
     AC_CHECK_HEADERS([libxl.h], [], [AC_MSG_ERROR(libxl.h not found. Install missing package and re-run)])

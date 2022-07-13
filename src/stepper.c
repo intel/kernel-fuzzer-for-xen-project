@@ -62,7 +62,7 @@ static bool print_instruction(vmi_instance_t _vmi, addr_t cr3, addr_t addr)
     vmi_read(_vmi, &ctx, 15, buf, &read);
 
     if ( read )
-        insn_count = cs_disasm(cs_handle, buf, read, cr3, 0, &insn);
+        insn_count = cs_disasm(cs_handle, buf, read, 0, 0, &insn);
 
     printf("%5lu: %16lx  ", count, addr);
 

@@ -156,7 +156,7 @@ bool decode_pt(void)
 
     if ( debug )
     {
-        FILE *fp = fopen("buf", "w");
+        FILE *fp = fopen("ipt-raw-buffer", "w");
         fwrite(buf, size, 1, fp);
         fclose(fp);
     }

@@ -177,13 +177,15 @@ static void do_stacktrace(vmi_instance_t vmi, vmi_event_t *event, addr_t memacce
     }
 
     gpointer found = g_hash_table_lookup(stack_tracker, GSIZE_TO_POINTER(key));
+    gsize stack_seen_count = found ? GPOINTER_TO_SIZE(found) : 0;
+    stack_seen_count++;
 
-    printf("\tStack key: 0x%lx %s\n", key, found ? "" : "new!");
+    printf("\tStack key: 0x%lx Seen: %lu\n", key, stack_seen_count);
+
+    g_hash_table_insert(stack_tracker, GSIZE_TO_POINTER(key), GSIZE_TO_POINTER(stack_seen_count));
 
     if ( !found )
     {
-        g_hash_table_insert(stack_tracker, GSIZE_TO_POINTER(key), GSIZE_TO_POINTER(1));
-
         FILE *f = NULL;
 
         if ( stack_unique && (f = fopen(stack_unique, "a")) )

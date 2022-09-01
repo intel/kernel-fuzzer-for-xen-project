@@ -32,6 +32,7 @@ static unsigned long tracer_counter;
 static addr_t next_cf_vaddr;
 static addr_t next_cf_paddr;
 static uint8_t cc = 0xCC;
+static uint8_t c3 = 0xC3;
 static uint8_t cf_backup;
 
 static void breakpoint_next_cf(vmi_instance_t vmi)
@@ -651,6 +652,27 @@ bool make_sink_ready(void)
         if ( debug )
             printf("Setting breakpoint on sink %s 0x%lx -> 0x%lx\n",
                 s->function, s->vaddr, s->paddr);
+    }
+
+    int i=sizeof(patch_list)/sizeof(void*);
+    while ( i-- )
+    {
+        addr_t patch_function, patch_function_pa;
+        if ( VMI_FAILURE == vmi_translate_ksym2v(sink_vmi, patch_list[i], &patch_function) )
+            continue;
+
+        if ( VMI_FAILURE == vmi_pagetable_lookup(sink_vmi, target_pagetable, patch_function, &patch_function_pa) )
+            goto done;
+
+        if ( VMI_FAILURE == vmi_write_pa(sink_vmi, patch_function_pa, 1, &c3, NULL) )
+        {
+            if ( debug ) printf("Failed to write %s PA 0x%lx\n", patch_list[i], patch_function_pa);
+            goto done;
+        }
+
+        if ( debug )
+            printf("Function %s patched out with ret at 0x%lx -> 0x%lx\n",
+                patch_list[i], patch_function, patch_function_pa);
     }
 
     unset_hvm_params();

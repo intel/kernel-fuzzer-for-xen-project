@@ -45,7 +45,7 @@ bool fork_vm(uint32_t domid, char *fork_sig, char *fork_flavor, uint32_t *forkdo
     create.flags |= XEN_DOMCTL_CDF_hvm;
     create.flags |= XEN_DOMCTL_CDF_hap;
     create.flags |= XEN_DOMCTL_CDF_oos_off;
-    create.flags |= XEN_DOMCTL_CDF_nested_virt;
+    //create.flags |= XEN_DOMCTL_CDF_nested_virt; // nested virt ops not yet supported in forks
     create.arch.emulation_flags = (XEN_X86_EMU_ALL & ~XEN_X86_EMU_VPCI);
     create.ssidref = 11; // SECINITSID_DOMU
     create.max_vcpus = vcpus;

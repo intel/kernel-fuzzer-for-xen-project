@@ -98,8 +98,11 @@ bool setup_pt(void)
 
     if ( xenforeignmemory_resource_size(fmem, fuzzdomid, XENMEM_resource_vmtrace_buf, 0, &pt_buf_size) )
     {
-        fprintf(stderr, "ERROR: Unable to query vmtrace buffer size!\n");
-        fprintf(stderr, "Make sure the domain config option for vmtrace is set and that you have a newer kernel!\n");
+        if ( debug )
+        {
+            fprintf(stderr, "ERROR: Unable to query vmtrace buffer size!\n");
+            fprintf(stderr, "Make sure the domain config option for vmtrace is set and that you have a newer kernel!\n");
+        }
         return false;
     }
 

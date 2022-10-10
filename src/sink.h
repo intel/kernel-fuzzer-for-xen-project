@@ -72,4 +72,14 @@ static struct sink sinks[] =
     //{ .function = "custom sink", .vaddr = 0xffffffdeadbeef },
 };
 
+/*
+ * The following function(s) will be looked up and patched out
+ * with a ret (0xc3). This is usually useful to avoid hitting functions that lead to
+ * a different code-path getting scheduled.
+ * TODO: make it as configurable as the sinks.
+ */
+static const char* patch_list[] =
+{
+    "__cond_resched",
+};
 #endif

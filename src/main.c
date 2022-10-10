@@ -76,12 +76,6 @@ static bool make_fuzz_ready()
         return false;
     }
 
-    if ( ptcov && !setup_pt() )
-    {
-        fprintf(stderr, "Failed to enable Processor Tracing\n");
-        return false;
-    }
-
     setup_trace(vmi);
 
     if ( debug ) printf("VM Fork is ready for fuzzing\n");
@@ -264,14 +258,17 @@ int main(int argc, char** argv)
     unsigned long refork = 0;
     bool keep = false;
     bool default_magic_mark = true;
+    bool force_ptcov = false;
 
     address = 0;
     magic_mark = 0;
-    harness_cpuid = true;
     input_path = NULL;
     input_size = 0;
     input_limit = 0;
     fork_sig = NULL;
+
+    ptcov = true;
+    harness_cpuid = true;
 
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
     {
@@ -320,15 +317,17 @@ int main(int argc, char** argv)
             case 'O':
                 loopmode = true;
                 nocov = true;
+                ptcov = false;
                 break;
             case 'K':
                 keep = true;
                 break;
             case 'N':
                 nocov = true;
+                ptcov = false;
                 break;
             case 't':
-                ptcov = true;
+                force_ptcov = true;
                 break;
             case 'D':
                 doublefetch = g_slist_prepend(doublefetch, GSIZE_TO_POINTER(strtoull(optarg, NULL, 0)));
@@ -485,10 +484,18 @@ int main(int argc, char** argv)
         goto done;
     }
 
-    if ( !nocov && !ptcov && cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
+    if ( !nocov && !(ptcov = setup_pt()) )
     {
-        fprintf(stderr, "Capstone init failed\n");
-        goto done;
+        fprintf(stderr, "Failed to enable Processor Tracing\n");
+
+        if ( force_ptcov )
+            goto done;
+
+        if ( cs_open(CS_ARCH_X86, pm == VMI_PM_IA32E ? CS_MODE_64 : CS_MODE_32, &cs_handle) )
+        {
+            fprintf(stderr, "Capstone init failed\n");
+            goto done;
+        }
     }
 
     if ( !make_fuzz_ready() )

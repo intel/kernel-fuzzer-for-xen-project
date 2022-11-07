@@ -545,7 +545,7 @@ bool load_mem(char *map, char *memf)
     if ( !fp )
         return false;
 
-    size_t len = 0, read;
+    size_t len = 0;
     char *mapline = NULL;
 
     while (getline(&mapline, &len, mapfp) != -1)

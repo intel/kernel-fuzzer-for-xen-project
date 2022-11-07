@@ -112,14 +112,10 @@ static void print_registers(x86_registers_t *regs)
 
 static event_response_t tracer_cb(vmi_instance_t _vmi, vmi_event_t *event)
 {
-    bool cpuid = false;
-    bool sysret = false;
-    bool breakpoint = false;
-
-    count++;
-
     bool stop = print_instruction(_vmi, event->x86_regs->cr3, event->x86_regs->rip);
     print_registers(event->x86_regs);
+
+    count++;
 
     if ( stop || count >= limit || event->x86_regs->rip == stop_rip )
     {

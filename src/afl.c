@@ -23,7 +23,6 @@
 
 unsigned char *afl_area_ptr;
 unsigned char *afl_input_ptr;
-static unsigned int afl_inst_rms = MAP_SIZE;
 static char *id_str;
 static char *fuzz_str;
 unsigned long prev_loc;

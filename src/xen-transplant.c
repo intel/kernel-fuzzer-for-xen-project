@@ -168,7 +168,7 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
     if ( cpu->version != 1 && cpu->size != sizeof(CPUState) )
     {
         fprintf(stderr, "Recorded CPUState is not correct version & size: %u %u, expected %u %lu\n",
-               cpu->version, cpu->size, 1, sizeof(CPUState));
+            cpu->version, cpu->size, 1, sizeof(CPUState));
         g_free(cpu);
         cpu = NULL;
         goto done;

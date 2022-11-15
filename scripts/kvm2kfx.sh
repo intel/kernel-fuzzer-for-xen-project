@@ -16,6 +16,17 @@ virsh qemu-monitor-command $vm --hmp dump-guest-memory /tmp/$vm-vmcore
 
 mv /tmp/$vm-vmcore $PWD
 
+cores=$(readelf -n $PWD/$vm-vmcore | grep "CORE" | wc -l)
+if [ $cores -eq 0 ] || [ -z $cores ]; then
+    echo "Error: No COREs detected in the snapshot"
+    exit 1
+fi
+if [ $cores -gt 1 ]; then
+    echo "Error: Multiple COREs detected in the snapshot!"
+    echo "Only single CPU VM snapshots are currently supported"
+    exit 1
+fi
+
 echo "Creating memory map for $vm"
 
 readelf -l $PWD/$vm-vmcore | grep -A1 LOAD | paste - - | tr -s " " | awk '{ print x$2 " " x$3 " " x$5}' > $PWD/$vm-memmap

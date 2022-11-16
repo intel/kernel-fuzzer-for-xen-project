@@ -167,7 +167,8 @@ CPUState *get_regs_vmcore(char *regmap, char *vmcore)
 
     if ( cpu->version != 1 && cpu->size != sizeof(CPUState) )
     {
-        printf("Recorded CPUState is not correct version or size: %u %u\n", cpu->version, cpu->size);
+        fprintf(stderr, "Recorded CPUState is not correct version & size: %u %u, expected %u %lu\n",
+            cpu->version, cpu->size, 1, sizeof(CPUState));
         g_free(cpu);
         cpu = NULL;
         goto done;
@@ -443,6 +444,9 @@ bool load_regs(char *reg, char *vmcore)
      * or in binary form embedded in the vmcore file.
      */
     cpu = g_strrstr(reg, ".csv") ? get_regs_csv(reg) : get_regs_vmcore(reg, vmcore);
+
+    if ( !cpu )
+        goto done;
 
     regs->rax = cpu->rax;
     regs->rbx = cpu->rbx;

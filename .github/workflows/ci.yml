@@ -7,10 +7,9 @@ jobs:
       matrix:
         os:
           - 'ubuntu-20.04'
+          - 'ubuntu-latest'
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 2
+      - uses: actions/checkout@v3
 
       - name: Install dependencies
         run: |
@@ -47,20 +46,20 @@ jobs:
         id: xen-hash
         run: |
           hash=$(git submodule | grep xen | awk '{print $1}')
-          echo ::set-output name=hash::$hash
+          echo hash=$hash >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: xen-cache
         with:
           path: ~/saved-xen
-          key: ${{ steps.xen-hash.outputs.hash }}
+          key: ${{matrix.os }}-${{ steps.xen-hash.outputs.hash }}
 
       - name: Compile Xen
         if: steps.xen-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/saved-xen
           git submodule update --init xen
-          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
+          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
           sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
           sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
           sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended
@@ -69,7 +68,7 @@ jobs:
           cd xen
           echo CONFIG_EXPERT=y > xen/.config
           echo CONFIG_MEM_SHARING=y >> xen/.config
-          ./configure --disable-pvshim --enable-ovmf --enable-systemd --enable-githttp
+          ./configure --disable-pvshim --disable-stubdom --enable-systemd --enable-githttp
           make -C xen olddefconfig
           make -j2 dist-xen
           make -j2 dist-tools
@@ -128,8 +127,8 @@ jobs:
           sudo make install
           cd ..
           git submodule deinit -f libxdc
-          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers ./configure
-          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers make
+          scan-build --status-bugs -analyze-headers ./configure
+          scan-build --status-bugs -analyze-headers make
 
       - name: Install dwarf2json
         if: github.ref == 'refs/heads/master'
@@ -152,7 +151,7 @@ jobs:
           make
           make PREFIX="" install
 
-      - name: Patch and install AFLplusplus
+      - name: Install AFLplusplus
         if: github.ref == 'refs/heads/master'
         run: |
           export DESTDIR="$PWD/install/aflplusplus"
@@ -168,8 +167,8 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: |
           tag=$(git describe --always)
-          echo ::set-output name=tag::$tag
-          wget https://downloads.xenproject.org/release/xen/4.15.0/xen-4.15.0.tar.gz
+          echo tag=$tag >> $GITHUB_OUTPUT
+          wget https://downloads.xenproject.org/release/xen/4.17.1/xen-4.17.1.tar.gz
           tar czvf source.tar.gz $PWD/*.tar.gz
           SAVEDIR="$PWD/save"
           mkdir -p $SAVEDIR
@@ -188,13 +187,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.archive.outputs.tag }}
-          release_name: Release ${{ steps.archive.outputs.tag }}
+          tag_name: ${{matrix.os }}-${{ steps.archive.outputs.tag }}
+          release_name: Release ${{matrix.os}}-${{ steps.archive.outputs.tag }}
           draft: false
           prerelease: false
 
       - name: Upload Release Asset
-        id: upload-release-asset 
+        id: upload-release-asset
         uses: actions/upload-release-asset@v1
         if: github.ref == 'refs/heads/master'
         env:
@@ -206,7 +205,7 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Upload Source Asset
-        id: upload-source-asset 
+        id: upload-source-asset
         uses: actions/upload-release-asset@v1
         if: github.ref == 'refs/heads/master'
         env:
@@ -225,4 +224,3 @@ jobs:
         with:
           keep_latest: 1
           delete_tags: true
-

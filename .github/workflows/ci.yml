@@ -68,7 +68,7 @@ jobs:
           cd xen
           echo CONFIG_EXPERT=y > xen/.config
           echo CONFIG_MEM_SHARING=y >> xen/.config
-          ./configure --disable-pvshim --disable-stubdom --enable-ovmf --enable-systemd --enable-githttp
+          ./configure --disable-pvshim --disable-stubdom --enable-systemd --enable-githttp
           make -C xen olddefconfig
           make -j2 dist-xen
           make -j2 dist-tools

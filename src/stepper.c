@@ -205,9 +205,9 @@ int main(int argc, char** argv)
     if ( reset )
     {
 #ifdef XEN_416
-         if ( xc_memshr_fork_reset(xc, domid) )
+        if ( xc_memshr_fork_reset(xc, domid) )
 #else
-         if ( xc_memshr_fork_reset(xc, domid, true, true) )
+        if ( xc_memshr_fork_reset(xc, domid, true, true) )
 #endif
         {
             printf("Failed to reset VM, is it a fork?\n");

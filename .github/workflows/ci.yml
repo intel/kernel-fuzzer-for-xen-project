@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p ~/saved-xen
           git submodule update --init xen
-          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev libsdl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
+          sudo apt-get install -y libfdt-dev libpixman-1-dev libssl-dev tightvncserver x11vnc uuid-runtime uuid-dev python3-dev liblzma-dev
           sudo apt-get install -y libc6-dev wget bcc bin86 gawk libpixman-1-dev libaio-dev libfdt-dev nasm
           sudo apt-get install -y libfuse-dev liblzma-dev libsystemd-dev gettext libyajl-dev iasl libbz2-dev e2fslibs-dev ocaml gcc-multilib libpci-dev
           sudo apt-get install -y texinfo texlive-latex-base texlive-latex-recommended texlive-fonts-extra texlive-fonts-recommended

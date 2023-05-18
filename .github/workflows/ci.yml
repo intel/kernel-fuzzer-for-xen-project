@@ -169,58 +169,20 @@ jobs:
           tag=$(git describe --always)
           echo tag=$tag >> $GITHUB_OUTPUT
           wget https://downloads.xenproject.org/release/xen/4.17.1/xen-4.17.1.tar.gz
-          tar czvf source.tar.gz $PWD/*.tar.gz
+          tar czvf source.${{ matrix.os }}.tar.gz $PWD/*.tar.gz
           SAVEDIR="$PWD/save"
           mkdir -p $SAVEDIR
           mv $PWD/install/* $SAVEDIR
           cp ~/saved-xen/*.deb $SAVEDIR
           cd $SAVEDIR
           tar czvf kfx.tar.gz lib bin include afl aflplusplus *.deb
-          mv kfx.tar.gz ..
+          mv kfx.tar.gz ../kfx.${{ matrix.os }}.tar.gz
           cd ..
           ls -la
 
-      - name: Create new release
-        id: create_release
-        uses: actions/create-release@v1
-        if: github.ref == 'refs/heads/master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v3
         with:
-          tag_name: ${{matrix.os }}-${{ steps.archive.outputs.tag }}
-          release_name: Release ${{matrix.os}}-${{ steps.archive.outputs.tag }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        if: github.ref == 'refs/heads/master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./kfx.tar.gz
-          asset_name: kfx.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Upload Source Asset
-        id: upload-source-asset
-        uses: actions/upload-release-asset@v1
-        if: github.ref == 'refs/heads/master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./source.tar.gz
-          asset_name: source.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Delete old release
-        uses: dev-drprasad/delete-older-releases@e3510b26d17114d63269aa02d3ebb592936d0981 #pin 0.2.0
-        if: github.ref == 'refs/heads/master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          keep_latest: 1
-          delete_tags: true
+          name: kfx-${{ matrix.os }}
+          path: |
+            kfx.*.tar.gz
+            source.*.tar.gz

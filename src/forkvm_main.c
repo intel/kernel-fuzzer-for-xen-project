@@ -10,7 +10,7 @@
 
 xc_interface *xc;
 libxl_ctx *xl;
-xc_dominfo_t info;
+xc_domaininfo_t info;
 struct xs_handle *xsh;
 int vcpus;
 uint32_t domid, forkdomid;
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 
     domid = atoi(argv[1]);
 
-    if ( 1 == xc_domain_getinfo(xc, domid, 1, &info) && info.domid == domid )
+    if ( 1 == xc_domain_getinfolist(xc, domid, 1, &info) && info.domain == domid )
     {
         vcpus = ++info.max_vcpu_id;
 

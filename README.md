@@ -97,6 +97,7 @@ make -j4 install-tools
 echo "/usr/local/lib" > /etc/ld.so.conf.d/xen.conf
 ldconfig
 echo "none /proc/xen xenfs defaults,nofail 0 0" >> /etc/fstab
+systemctl enable xencommons.service
 systemctl enable xen-qemu-dom0-disk-backend.service
 systemctl enable xen-init-dom0.service
 systemctl enable xenconsoled.service

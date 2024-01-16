@@ -2,7 +2,9 @@ name: CI
 on: [push, pull_request]
 jobs:
   compile:
-    permissions: read-all
+    permissions:
+      security-events: write
+      contents: read
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

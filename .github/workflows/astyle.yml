@@ -4,6 +4,7 @@ on:
     branches: [ master ]
 jobs:
   astyle:
+    permissions: read-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

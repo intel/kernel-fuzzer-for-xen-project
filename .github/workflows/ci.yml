@@ -5,6 +5,7 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -105,6 +106,12 @@ jobs:
           git submodule update --init libxdc
           tar czvf libxdc.tar.gz libxdc
 
+      - name: Initialize CodeQL
+        if: ${{ matrix.os }} == 'ubuntu-latest'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'c-cpp'
+
       - name: Compile kfx
         run: |
           export INSTALLDIR="$PWD/install"
@@ -116,6 +123,12 @@ jobs:
           ./configure --prefix=$INSTALLDIR
           make -j2
           make install
+
+      - name: Perform CodeQL Analysis
+        if: ${{ matrix.os }} == 'ubuntu-latest'
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:c-cpp"
 
       - name: Scan build
         run: |
@@ -189,9 +202,3 @@ jobs:
           path: |
             kfx.*.tar.gz
             source.*.tar.gz
-
-      - name: Perform CodeQL Analysis
-        if: ${{ matrix.os }} == 'ubuntu-latest'
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:c"

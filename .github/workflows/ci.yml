@@ -10,7 +10,7 @@ jobs:
           - 'ubuntu-20.04'
           - 'ubuntu-latest'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -181,7 +181,7 @@ jobs:
           cd ..
           ls -la
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: kfx-${{ matrix.os }}
           path: |

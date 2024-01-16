@@ -186,3 +186,9 @@ jobs:
           path: |
             kfx.*.tar.gz
             source.*.tar.gz
+
+      - name: Perform CodeQL Analysis
+        if: ${{ matrix.os }} == 'ubuntu-latest'
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:c"
